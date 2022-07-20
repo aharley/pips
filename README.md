@@ -12,12 +12,11 @@ This repo will be updated soon with more content.
 
 To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html).
 
-Once you have the flows (`optical_flow/`) and masks (`object_index/`), you can run `python link_flt3d_traj.py`. This will create an additional 80G of trajectory data.
+Once you have the flows (`../flyingthings/optical_flow/`) and masks (`../flyingthings/object_index/`), you can run `python link_flt3d_traj.py`. This will create 80G of trajectory data in `../flyingthings/trajs_ad/`.
 
-Finally, run `python make_occlusions.py`. This will create 537M of occlusion data.
+Finally, run `python make_occlusions.py`. This will create 537M of occlusion data, in `../flyingthings/occluders_al`.
 
 This data will be loaded and joined with corresponding rgb (`frames_cleanpass_webp/`) by `flyingthingsdataset.py` for training and testing.
-
 
 ### Citation
 
