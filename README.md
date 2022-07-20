@@ -13,11 +13,7 @@ This repo will be updated soon with more content.
 To create our FlyingThings++ dataset:
 - [Download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html)
 - Run `python link_flt3d_traj.py`
-
-
-
-
-
+This will create 80G of trajectory data, and 537M of occlusion data, to be used by `flyingthingsdataset.py` for training/testing.
 
 
 
