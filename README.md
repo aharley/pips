@@ -8,6 +8,19 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 This repo will be updated soon with more content.
 
+## FlyingThings++ dataset
+
+To create our FlyingThings++ dataset:
+- [Download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html)
+- Run `python link_flt3d_traj.py`
+
+
+
+
+
+
+
+
 ### Citation
 
 If you use this code for your research, please cite:
