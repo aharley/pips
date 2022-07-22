@@ -437,6 +437,7 @@ def train():
     exp_name = 'tb85' # init from tb83; load step, optimizer, to maybe start from 6k; shallow=True < 3860500
     exp_name = 'tb86' # fix bug in fcp vis
     exp_name = 'tb87' # re-run with quick=False on 4 gpus
+    exp_name = 'tb88' # no flips, so i can run quickly  
 
     # init_dir = 'checkpoints/01_8_128_3e-4_p1_A_tb70_23:16:18'
     init_dir = ''
@@ -451,8 +452,8 @@ def train():
     N = 128
     lr = 3e-4
     grad_acc = 1
-    horz_flip = True
-    vert_flip = True
+    horz_flip = False
+    vert_flip = False
     stride = 8
     # horz_flip = False
     # vert_flip = False
