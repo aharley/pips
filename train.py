@@ -303,6 +303,9 @@ def train():
     init_dir = ''
     coeff_prob = 0.0
     use_augs = False
+    load_optimizer = False
+    load_step = False
+    ignore_load = None
 
     # the idea here is to train a basic model on the upgraded flt
     exp_name = 'tb00' # I=6 < ok but still slowing
@@ -433,13 +436,14 @@ def train():
     exp_name = 'tb84' # init from tb83; load step, optimizer, to maybe start from 6k
     exp_name = 'tb85' # init from tb83; load step, optimizer, to maybe start from 6k; shallow=True < 3860500
     exp_name = 'tb86' # fix bug in fcp vis
+    exp_name = 'tb87' # re-run with quick=False on 4 gpus
 
     # init_dir = 'checkpoints/01_8_128_3e-4_p1_A_tb70_23:16:18'
-    # init_dir = ''
-    init_dir = 'checkpoints/4hv_8_128_I6_3e-4_p1_A_tb83_12:42:52'
-    load_optimizer = True
-    load_step = True
-    ignore_load = None
+    init_dir = ''
+    # init_dir = 'checkpoints/4hv_8_128_I6_3e-4_p1_A_tb83_12:42:52'
+    # load_optimizer = True
+    # load_step = True
+    # ignore_load = None
 
     ## choose hyps
     B = 1
@@ -478,7 +482,7 @@ def train():
         subset = 'A'
         use_augs = True
     else:
-        max_iters = 200000
+        max_iters = 100000
         log_freq = 500
         val_freq = 50
         save_freq = 1000
