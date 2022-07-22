@@ -8,6 +8,23 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 This repo will be updated soon with more content and instructions.
 
+## Requirements
+
+## Demo
+
+## 
+
+
+
+
+
+## Training
+
+
+## Testing
+
+
+
 ## FlyingThings++ dataset
 
 To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html). The data should look like:
@@ -18,20 +35,20 @@ To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.
 ../flyingthings/frames_cleanpass_webp/
 ```
 
-Once you have the flows and masks, you can run `python link_flt3d_traj.py`. This will create 80G of trajectory data into:
+Once you have the flows and masks, you can run `python link_flt3d_traj.py`. This will put 80G of trajectory data into:
 ```
 ../flyingthings/trajs_ad/
 ```
 
-In parallel, you can run `python make_occlusions.py`. This will create 537M of occlusion data into:
+In parallel, you can run `python make_occlusions.py`. This will put 537M of occlusion data into:
 
 ```
 ../flyingthings/occluders_al
 ```
 
-This data will be loaded and joined with corresponding rgb by `flyingthingsdataset.py` when training and testing.
+This data will be loaded and joined with corresponding rgb by the `FlyingThingsDataset` class in `flyingthingsdataset.py`, when training and testing.
 
-The suffixes "ad" and "al" are version counters. 
+(The suffixes "ad" and "al" are version counters.)
 
 
 ### Citation
