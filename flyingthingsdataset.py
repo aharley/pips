@@ -358,7 +358,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         valids = valids[:,inb_and_vis]
         
         if trajs.shape[1] <= self.N:
-            print('returning None')
+            # print('warning: too few trajs; returning None')
             return None, False
         
         N_ = min(trajs.shape[1], self.N)
@@ -404,7 +404,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
                 # save time by not trying this index again
                 load_fail = 1
                 self.load_fails[index] = load_fail
-                print('updated load_fails (on this worker): %d/%d...' % (np.sum(self.load_fails), len(self.load_fails)))
+                print('warning: updated load_fails (on this worker): %d/%d...' % (np.sum(self.load_fails), len(self.load_fails)))
 
                 while load_fail:
                     index = np.random.randint(0, len(self.load_fails))
