@@ -10,7 +10,19 @@ This repo will be updated soon with more content and instructions.
 
 ## Requirements
 
+
 ## Demo
+
+For a quick demo, try: 
+```
+python test_on_puppy.py
+```
+
+This will run the model on a sequence included in `demo_images/`. 
+
+The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
+
+
 
 ## 
 
@@ -22,6 +34,11 @@ This repo will be updated soon with more content and instructions.
 
 
 ## Testing
+
+
+```
+../badja_data/DAVIS
+```
 
 
 
@@ -49,6 +66,7 @@ In parallel, you can run `python make_occlusions.py`. This will put 537M of occl
 This data will be loaded and joined with corresponding rgb by the `FlyingThingsDataset` class in `flyingthingsdataset.py`, when training and testing.
 
 (The suffixes "ad" and "al" are version counters.)
+
 
 
 ### Citation
