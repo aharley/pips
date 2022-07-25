@@ -6,7 +6,9 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
-This repo will be updated soon with more content and instructions.
+[This repo is currently being updated with additional content and instructions.]
+
+
 
 ## Requirements
 
@@ -15,13 +17,13 @@ This repo will be updated soon with more content and instructions.
 ## Demo
 
 
-To download our reference model, run this script:
+To download our reference model, run this:
 
 ```
 sh get_reference_model.sh
 ```
 
-To run this model on a sample video, run this script:
+To run this model on a sample video, run this:
 ```
 python demo.py
 ```
@@ -97,6 +99,11 @@ Occasional `load_fails` warnings are typically harmless. They indicate when the 
 
 
 ## Testing
+
+To test the model in Flyingthings++, run this:
+```
+python test_on_flt.py
+```
 
 
 ```
