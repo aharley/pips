@@ -74,7 +74,7 @@ To train a model on the flyingthings++ dataset:
 python train.py
 ```
 
-It should print some diagnostic information about the model and data, then print a message for each iteration.
+First it should print some diagnostic information about the model and data. Then, it should print a message for each iteration, indicating the model name, progress, read time, iteration time, and loss. 
 
 ```
 model_name 1_8_128_I6_3e-4_A_tb89_21:34:46
