@@ -8,22 +8,19 @@ make readme
 
 make decent flt instructions
 
+add puppy demo
+
+add instructions for demo
+
+add image files for demo
 
 
 
 DOING
 
-add puppy demo
-
-add instructions for demo
-
-add min files for demo
-
-
+clean up train.py
 
 add each file we think is critical: demo, trainer, and three tests
-
-make trainer work
 
 make davis test work
 

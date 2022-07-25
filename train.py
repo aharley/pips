@@ -1,49 +1,20 @@
 import time
-import argparse
 import numpy as np
 import timeit
-import matplotlib
-# import tensorflow as tf
-# import scipy.misc
-import io
-import os
-import math
-from PIL import Image
-matplotlib.use('Agg') # suppress plot showing
-
-import matplotlib.pyplot as plt
-
-import matplotlib.animation as animation
-import cv2
 import saverloader
 from nets.singlepoint import Singlepoint
-
 import utils.py
-# import utils.box
 import utils.misc
 import utils.improc
-# import utils.vox
 import utils.grouping
-from tqdm import tqdm
 import random
-import glob
-# import color2d
-
 from utils.basic import print_, print_stats
-
-# import datasets
 import flyingthingsdataset
-# import cater_pointtraj_dataset
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-
 from tensorboardX import SummaryWriter
-
 import torch.nn.functional as F
-
-# import inputs
 
 device = 'cuda'
 patch_size = 8
@@ -55,7 +26,6 @@ def requires_grad(parameters, flag=True):
         p.requires_grad = flag
 
 def fetch_optimizer(lr, wdecay, epsilon, num_steps, params):
-    """ Create the optimizer and learning rate scheduler """
     optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=wdecay, eps=epsilon)
 
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, num_steps+100,
@@ -64,15 +34,8 @@ def fetch_optimizer(lr, wdecay, epsilon, num_steps, params):
     return optimizer, scheduler
 
 
-
-
 def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
     total_loss = torch.tensor(0.0, requires_grad=True).to(device)
-    # metrics = {
-    #     'epe_all': 0,
-    #     'epe_vis': 0,
-    #     'epe_occ': 0,
-    # }
 
     # flow = d['flow'].cuda().permute(0, 3, 1, 2)
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
@@ -88,18 +51,7 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
 
     assert(torch.sum(valids)==B*S*N)
 
-    # lengths = torch.norm(trajs_g[:,-1]-trajs_g[:,0], dim=-1) # B, N
-    # # valids = valids * (lengths < 1000).float().reshape(B, 1, N)
-    # valids = valids * (lengths < W*2).float().reshape(B, 1, N)
-
-    # print_stats('rgbs', rgbs)
-    # print_stats('trajs_g', trajs_g)
-    # print_stats('vis_g', vis_g)
-    # print_stats('valids', valids)
-    # print_stats('masks', masks)
-    # print_stats('occs', occs)
-
-    if horz_flip:
+    if horz_flip: # increase the batchsize by horizontal flipping
         rgbs_flip = torch.flip(rgbs, [4])
         occs_flip = torch.flip(occs, [4])
         masks_flip = torch.flip(masks, [4])
@@ -115,7 +67,7 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         masks = torch.cat([masks, masks_flip], dim=0)
         B = B * 2
 
-    if vert_flip:
+    if vert_flip: # increase the batchsize by vertical flipping
         rgbs_flip = torch.flip(rgbs, [3])
         occs_flip = torch.flip(occs, [3])
         masks_flip = torch.flip(masks, [3])
@@ -131,11 +83,8 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         masks = torch.cat([masks, masks_flip], dim=0)
         B = B * 2
 
-    # print('rgbs out', rgbs.shape)
-    # preds, preds2, fcps, ccps, vis_e = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, coords_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
-    # preds, preds2, vis_e, seq_loss, vis_loss, ce_loss = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
-    preds, preds2, vis_e, stats = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
-    # preds is a list of B,S,N,2 elements
+
+    preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
     seq_loss, vis_loss, ce_loss = stats
     
     total_loss += seq_loss.mean()
@@ -155,103 +104,9 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         'vis': vis_loss.mean().item(),
         'ce': ce_loss.mean().item()
     }
-    # print_stats('preds[0]', preds[0])
-    # print_stats('fcps', fcps)
-
-    # vis_loss, _ = balanced_ce_loss(vis_e, vis_g)
-    # total_loss += vis_loss
-
-    # use_ce = True
-    # if use_ce:
-    #     # compute cross entropy loss on the heatmaps
-    #     stride = model.module.stride
-    #     H8, W8 = H//stride, W//stride
-    #     # fcps is B,S,I,N,H8,W8
-
-    # def score_map_loss(fcps, trajs_g, vis_g, valids):
-    #     fcp_ = fcps.permute(0,1,3,2,4,5).reshape(B*S*N,I,H8,W8) # BSN,I,H8,W8
-    #     # print('fcp_', fcp_.shape)
-    #     xy_ = (trajs_g.reshape(B*S*N,2)/stride).round().long() # BSN,2
-    #     vis_ = vis_g.reshape(B*S*N) # BSN
-    #     valid_ = valids.reshape(B*S*N) # BSN
-    #     x_, y_ = xy_[:,0], xy_[:,1] # BSN
-    #     print('x_', x_.shape)
-    #     print('y_', y_.shape)
-    #     print('vis_', vis_.shape)
-    #     print('valid_', valid_.shape)
-    #     ind = (x_ >= 0) & (x_ <= (W8-1)) & (y_ >= 0) & (y_ <= (H8-1)) & (valid_ > 0) & (vis_ > 0) # BSN
-    #     print('ind', ind.shape, torch.sum(ind))
-    #     # if torch.sum(ind) > 0:
-    #     fcp_ = fcp_[ind] # N_,I,H8,W8
-    #     xy_ = xy_[ind] # N_
-    #     N_ = fcp_.shape[0]
-    #     print('fcp_', fcp_.shape)
-    #     print('xy_', xy_.shape)
-
-    #     # N_ is the number of heatmaps with valid targets
-        
-    #     # make gt with ones at the rounded spatial inds in here
-    #     gt_ = torch.zeros_like(fcp_) # N_,I,H8,W8
-    #     gt_[:,:,xy_[:,1],xy_[:,0]] = 1 # N_,I,H8,W8 with a 1 in the right spot
-    #     # fcp_ = fcp_.reshape(N_*I,H8*W8)
-    #     # gt_ = gt_.reshape(N_*I,H8*W8)
-    #     # argm = torch.argmax(gt_, dim=1)
-    #     # ce_loss = F.cross_entropy(fcp_, argm, reduction='mean')
-
-    #     fcp_ = fcp_.reshape(N_*I*H8*W8)
-    #     gt_ = gt_.reshape(N_*I*H8*W8)
-    #     # ce_loss = F.binary_cross_entropy_with_logits(fcp_, gt_, reduction='mean')
-    #     ce_loss, _ = balanced_ce_loss(fcp_, gt_)
-    #     print('ce_loss', ce_loss)
-    #     total_loss += ce_loss
-    #     metrics['ce'] = ce_loss.item()
-    # else:
-    #     metrics['ce'] = 0
-    
-    # fcp_ = fcp_.reshape(H8*W8)
-    
-    # # cp_e = utils.samp.bilinear_sample2d(__p(fcps[:,:,-1]), __p(trajs_e)[:,0:1,0]/stride, __p(trajs_e)[:,0:1,1]/stride))
-    # if False:
-    #     cp_e = []
-    #     argm = []
-    #     for b in range(B):
-    #         for s in range(S):
-    #             for n in range(N):
-    #                 cp = fcps[b,s,-1,n] # H8, W8
-    #                 xy = (trajs_g[b,s,n]/stride).round().long() # 2
-    #                 x, y = xy[0], xy[1]
-    #                 if (x >= 0 and
-    #                     x <= W8-1 and
-    #                     y >= 0 and
-    #                     y <= H8-1 and
-    #                     vis_g[b,s,n] > 0 and
-    #                     valids[b,s,n] > 0 
-    #                 ):
-    #                     heatmap_g = torch.zeros_like(cp)
-    #                     heatmap_g[y,x] = 1
-    #                     cp_e.append(cp.reshape(1, -1))
-    #                     cp_g = heatmap_g.reshape(1, -1)
-    #                     argm.append(torch.argmax(cp_g, dim=1))
-    #     if len(cp_e):
-    #         cp_e = torch.cat(cp_e, dim=0)
-    #         argm = torch.cat(argm, dim=0)
-    #         ce_loss = F.cross_entropy(cp_e, argm, reduction='mean')
-    #         total_loss += ce_loss
-    #     else:
-    #         ce_loss = total_loss*0
-    #     metrics['ce'] = ce_loss.item()
     
     if sw is not None and sw.save_this:
         trajs_e = preds[-1]
-
-        # pad_x0 = int((-torch.min(trajs_g[:,:,:,0])).clamp(min=0).round().item())
-        # pad_x1 = int((torch.max(trajs_g[:,:,:,0]) - W).clamp(min=0).round().item())
-        # pad_y0 = int((-torch.min(trajs_g[:,:,:,1])).clamp(min=0).round().item())
-        # pad_y1 = int((torch.max(trajs_g[:,:,:,1]) - H).clamp(min=0).round().item())
-        # pad_x0 = 50
-        # pad_y0 = 50
-        # pad_x1 = 50
-        # pad_y1 = 50
 
         pad = 50
         rgbs = F.pad(rgbs.reshape(B*S, 3, H, W), (pad, pad, pad, pad), 'constant', 0).reshape(B, S, 3, H+pad*2, W+pad*2)
@@ -260,12 +115,6 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         trajs_e = trajs_e + pad
         trajs_g = trajs_g + pad
         
-        # rgbs = F.pad(rgbs.reshape(B*S, 3, H, W), (pad_x0, pad_x1, pad_y0, pad_y1), 'constant', 0).reshape(B, S, 3, H+pad_y0+pad_y1, W+pad_x0+pad_x1)
-        # trajs_e[:,:,0] += pad_x0
-        # trajs_e[:,:,1] += pad_y0
-        # trajs_g[:,:,0] += pad_x0
-        # trajs_g[:,:,1] += pad_y0
-
         occs_ = occs[0].reshape(S, -1)
         counts_ = torch.max(occs_, dim=1)[0]
         # print('counts_', counts_)
@@ -286,10 +135,10 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring')
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring')
 
-        if False:
+        if False: # this works but it's a bit expensive
             rgb_vis = []
             black_vis = []
-            for trajs_e in preds2:
+            for trajs_e in preds_anim:
                 rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_rgb, only_return=True, cmap='spring'))
                 black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_black, only_return=True, cmap='spring'))
             sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
@@ -301,11 +150,11 @@ def train():
 
     # default coeffs (don't touch)
     init_dir = ''
-    coeff_prob = 0.0
     use_augs = False
     load_optimizer = False
     load_step = False
     ignore_load = None
+    use_scheduler = False
 
     # the idea here is to train a basic model on the upgraded flt
     exp_name = 'tb00' # I=6 < ok but still slowing
@@ -438,10 +287,9 @@ def train():
     exp_name = 'tb86' # fix bug in fcp vis
     exp_name = 'tb87' # re-run with quick=False on 4 gpus
     exp_name = 'tb88' # no flips, so i can run quickly  
+    exp_name = 'tb89' # clean up
 
-    # init_dir = 'checkpoints/01_8_128_3e-4_p1_A_tb70_23:16:18'
     init_dir = ''
-    # init_dir = 'checkpoints/4hv_8_128_I6_3e-4_p1_A_tb83_12:42:52'
     # load_optimizer = True
     # load_step = True
     # ignore_load = None
@@ -455,15 +303,11 @@ def train():
     horz_flip = False
     vert_flip = False
     stride = 8
-    # horz_flip = False
-    # vert_flip = False
     I = 6
+    use_scheduler = False
+
     
-    # crop_size = (384,384) # the raw data is 540,960
     crop_size = (384,512) # the raw data is 540,960
-    # crop_size = (384,512) # the raw data is 540,960
-    # crop_size = (384,512) # the raw data is 540,960
-    # crop_size = (256,384) # the raw data is 540,960
     assert(crop_size[0] % 128 == 0)
     assert(crop_size[1] % 128 == 0)
 
@@ -494,10 +338,7 @@ def train():
         subset = 'all'
         use_augs = True
     
-    # actual coeffs
-    coeff_prob = 1.0
-
-    ## autogen a name
+    ## autogen a descriptive name
     if horz_flip and vert_flip:
         model_name = "%dhv" % (B*4)
     elif horz_flip:
@@ -508,25 +349,17 @@ def train():
         model_name = "%d" % (B)
     model_name += "_%d_%d" % (S, N)
     model_name += "_I%d" % (I)
-    
     lrn = "%.1e" % lr # e.g., 5.0e-04
     lrn = lrn[0] + lrn[3:5] + lrn[-1] # e.g., 5e-4
     model_name += "_%s" % lrn
     if cache_len:
         model_name += "_cache%d" % cache_len
-    all_coeffs = [
-        coeff_prob,
-    ]
-    all_prefixes = [
-        "p",
-    ]
     for l_, l in enumerate(all_coeffs):
         if l > 0:
             model_name += "_%s%s" % (all_prefixes[l_], utils.basic.strnum(l))
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
-    
     import datetime
     model_date = datetime.datetime.now().strftime('%H:%M:%S')
     model_name = model_name + '_' + model_date
@@ -574,12 +407,13 @@ def train():
             drop_last=False)
         val_iterloader = iter(val_dataloader)
     
-    
     model = Singlepoint(stride=stride).cuda()
     model = torch.nn.DataParallel(model)
     parameters = list(model.parameters())
-    # optimizer, scheduler = fetch_optimizer(lr, 0.0001, 1e-8, max_iters//grad_acc, model.parameters())
-    optimizer = torch.optim.Adam(parameters, lr=lr, weight_decay=1e-7)
+    if use_scheduler:
+        optimizer, scheduler = fetch_optimizer(lr, 0.0001, 1e-8, max_iters//grad_acc, model.parameters())
+    else:
+        optimizer = torch.optim.Adam(parameters, lr=lr, weight_decay=1e-7)
 
     global_step = 0
     if init_dir:
@@ -684,7 +518,8 @@ def train():
         if (global_step) % grad_acc == 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.step()
-            # scheduler.step()
+            if use_scheduler:
+                scheduler.step()
             optimizer.zero_grad()
 
         if do_val and (global_step) % val_freq == 0:
