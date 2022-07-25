@@ -52,7 +52,7 @@ To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.
 ../flyingthings/frames_cleanpass_webp/
 ```
 
-Once you have the flows and masks, you can run `python link_flt3d_traj.py`. This will put 80G of trajectory data into:
+Once you have the flows and masks, you can run `python make_trajs.py`. This will put 80G of trajectory data into:
 ```
 ../flyingthings/trajs_ad/
 ```
