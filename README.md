@@ -22,6 +22,9 @@ This will run the model on a sequence included in `demo_images/`.
 
 For each 8-frame subsequence, the model will return `trajs_e`. This is estimated trajectory data for the particles, shaped `B,S,N,2`, where `S` is the sequence length and `N` is the number of particles, and `2` is the `x` and `y` coordinates. The script will also produce tensorboard logs with visualizations, which go into `logs_demo/`, as well as a few gifs in `./*.gif`. 
 
+In the tensorboard you should be able to find visualizations like this: 
+<img src='https://particle-video-revisited.github.io/images/puppy_wide.gif'>
+
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
 
