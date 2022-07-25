@@ -2,80 +2,21 @@ import time
 import argparse
 import numpy as np
 import timeit
-import matplotlib
-# import tensorflow as tf
-# import scipy.misc
-import io
-import os
-import math
-from PIL import Image
-matplotlib.use('Agg') # suppress plot showing
-
-import matplotlib.pyplot as plt
-
-import matplotlib.animation as animation
 import cv2
 import saverloader
-
-#from raft_core.raft import RAFT
-# from relative_perceiver import RelativePerceiver
-# from sparse_relative_perceiver import SparseRelativePerceiver
-# from nets.graph_raft import GraphRaft
-#from nets.st_graph_raft import StGraphRaft
-# from nets.st_spraft import StSpRaft
-# from nets.st_graph_raft import StGraphRaft
-# # from nets.mraft import Mraft
-# from nets.praft import Praft
-# from nets.mpraft import Mpraft
-# from perceiver_graph import PerceiverGraph
-# from relative_mlp import RelativeMlp
-# import nets.raftnet
 from nets.raftnet import Raftnet
 from nets.singlepoint import Singlepoint
-
-def requires_grad(parameters, flag=True):
-    for p in parameters:
-        p.requires_grad = flag
-
-def fetch_optimizer(lr, wdecay, epsilon, num_steps, params):
-    """ Create the optimizer and learning rate scheduler """
-    optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=wdecay, eps=epsilon)
-
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, num_steps+100,
-        pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
-
-    return optimizer, scheduler
-
 import utils.py
-# import utils.box
 import utils.misc
 import utils.improc
-# import utils.vox
-# import utils.grouping
-# from tqdm import tqdm
 import random
-# import glob
-# import color2d
-
 from utils.basic import print_, print_stats
-
-
-# import relation_model
-
 import flyingthingsdataset
-# import datasets
-# import cater_pointtraj_dataset
-from headtrackingdataset import HeadTrackingDataset
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-
 from tensorboardX import SummaryWriter
-
 import torch.nn.functional as F
-
-# import inputs
 
 device = 'cuda'
 patch_size = 8
@@ -189,7 +130,6 @@ def norm_mask(mask):
     return mask
 
 def run_dino(dino, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
     import copy
 
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
@@ -320,11 +260,10 @@ def run_dino(dino, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring', linewidth=2)
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
     
-    return total_loss, metrics
+    return metrics
 
 
 def run_singlepoint(model, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
     occs = d['occs'].cuda().float() # B, S, 1, H, W
@@ -389,12 +328,10 @@ def run_singlepoint(model, d, sw):
         # sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
         # sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
 
-    return total_loss, metrics
+    return metrics
 
 
 def run_raft(raft, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
-
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
     occs = d['occs'].cuda().float() # B, S, 1, H, W
     masks = d['masks'].cuda().float() # B, S, 1, H, W
@@ -459,21 +396,16 @@ def run_raft(raft, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring', linewidth=2)
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
 
-    return total_loss, metrics
+    return metrics
 
 
 def train(args):
 
-    # default coeffs (don't touch)
-    init_dir = ''
-    coeff_prob = 0.0
-    use_augs = False
-
-    exp_name = 'fa00' # copy from particles repo
+    # the idea in this file is to test the model on flyingthings
     
-    # init_dir = '/projects/katefgroup/track_share/12_8_256_8_1e-4_p1_A_big16_19:31:10'
-    init_dir = 'saved_checkpoints/4hv_8_128_I6_4e-4_p1_A_tb78_01:13:39' # best
-    init_dir = 'checkpoints/4hv_8_128_I6_4e-4_p1_A_tb79_09:11:39' # new best
+    exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
+    
+    init_dir = 'reference_model'
     
     stride = 4
 
@@ -495,10 +427,6 @@ def train(args):
     subset = 'all'
     crop_size = (384,512) # the raw data is 540,960
 
-    # actual coeffs
-    coeff_prob = 1.0
-
-    use_augs = True
     use_augs = False
 
     ## autogen a name
@@ -506,15 +434,6 @@ def train(args):
     lrn = "%.1e" % lr # e.g., 5.0e-04
     lrn = lrn[0] + lrn[3:5] + lrn[-1] # e.g., 5e-4
     model_name += "_%s" % lrn
-    all_coeffs = [
-        coeff_prob,
-    ]
-    all_prefixes = [
-        "p",
-    ]
-    for l_, l in enumerate(all_coeffs):
-        if l > 0:
-            model_name += "_%s%s" % (all_prefixes[l_], utils.basic.strnum(l))
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
@@ -562,17 +481,7 @@ def train(args):
         p.requires_grad = False
     dino.eval()
     
-
     n_pool = 10000
-    # loss_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # ce_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_inv2inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # flow_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    
     ate_all_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
@@ -581,12 +490,10 @@ def train(args):
     print('setting max_iters', max_iters)
     
     while global_step < max_iters:
-        # optimizer.zero_grad()
         
         read_start_time = time.time()
 
         global_step += 1
-        total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
         sw_t = utils.improc.Summ_writer(
             writer=writer_t,
@@ -606,13 +513,9 @@ def train(args):
         iter_start_time = time.time()
             
         with torch.no_grad():
-            # total_loss, metrics = run_singlepoint(singlepoint, sample, sw_t)
-            # total_loss, metrics = run_raft(raft, sample, sw_t)
-            total_loss, metrics = run_dino(dino, sample, sw_t)
-
-        # sw_t.summ_scalar('total_loss', total_loss)
-        # loss_pool_t.update([total_loss.detach().cpu().numpy()])
-        # sw_t.summ_scalar('pooled/total_loss', loss_pool_t.mean())
+            # metrics = run_dino(dino, sample, sw_t)
+            # metrics = run_raft(raft, sample, sw_t)
+            metrics = run_singlepoint(singlepoint, sample, sw_t)
 
         if metrics['ate_all'] > 0:
             ate_all_pool_t.update([metrics['ate_all']])
@@ -624,16 +527,10 @@ def train(args):
         sw_t.summ_scalar('pooled/ate_vis', ate_vis_pool_t.mean())
         sw_t.summ_scalar('pooled/ate_occ', ate_occ_pool_t.mean())
 
-        # if np.mod(global_step, save_freq)==0:
-        #     saverloader.save(ckpt_dir, optimizer, model, global_step, keep_latest=5)
-
         iter_time = time.time()-iter_start_time
         print('%s; step %06d/%d; rtime %.2f; itime %.2f, ate_vis = %.2f, ate_occ = %.2f' % (
             model_name, global_step, max_iters, read_time, iter_time,
             ate_vis_pool_t.mean(), ate_occ_pool_t.mean()))
-        # if global_step % log_freq == 0:
-        #     print('epe_pooled = %.5f, epe_vis_pooled = %.5f, epe_inv_pooled = %.5f' % (
-        #         epe_pool_t.mean(), epe_vis_pool_t.mean(), epe_inv_pool_t.mean()))
 
     writer_t.close()
 
