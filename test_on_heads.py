@@ -2,86 +2,28 @@ import time
 import argparse
 import numpy as np
 import timeit
-import matplotlib
-# import tensorflow as tf
-# import scipy.misc
-import io
-import os
-import math
-from PIL import Image
-matplotlib.use('Agg') # suppress plot showing
-
-import matplotlib.pyplot as plt
-
-import matplotlib.animation as animation
 import cv2
 import saverloader
-
-#from raft_core.raft import RAFT
-# from relative_perceiver import RelativePerceiver
-# from sparse_relative_perceiver import SparseRelativePerceiver
-# from nets.graph_raft import GraphRaft
-#from nets.st_graph_raft import StGraphRaft
-# from nets.st_spraft import StSpRaft
-# from nets.st_graph_raft import StGraphRaft
-# # from nets.mraft import Mraft
-# from nets.praft import Praft
-# from nets.mpraft import Mpraft
-# from perceiver_graph import PerceiverGraph
-# from relative_mlp import RelativeMlp
-# import nets.raftnet
 from nets.raftnet import Raftnet
 from nets.singlepoint import Singlepoint
-
-def requires_grad(parameters, flag=True):
-    for p in parameters:
-        p.requires_grad = flag
-
-def fetch_optimizer(lr, wdecay, epsilon, num_steps, params):
-    """ Create the optimizer and learning rate scheduler """
-    optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=wdecay, eps=epsilon)
-
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, num_steps+100,
-        pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
-
-    return optimizer, scheduler
-
 import utils.py
-# import utils.box
 import utils.misc
 import utils.improc
-# import utils.vox
-# import utils.grouping
-# from tqdm import tqdm
 import random
-# import glob
-# import color2d
-
 from utils.basic import print_, print_stats
-
-
-# import relation_model
-
-# import datasets
-# import cater_pointtraj_dataset
-from headtrackingdataset import HeadTrackingDataset
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-
 from tensorboardX import SummaryWriter
-
 import torch.nn.functional as F
-
-# import inputs
+from headtrackingdataset import HeadTrackingDataset
 
 device = 'cuda'
 patch_size = 8
 random.seed(125)
 np.random.seed(125)
 
-def prep_sample(sample, N_max, S_stride=3):
+def prep_sample(sample, N_max, S_stride=3, req_occlusion=False):
     rgbs = sample['rgbs'].permute(0,1,4,2,S_stride).float()[:,::S_stride] # (1, S, C, H, W) in 0-255
     boxlist = sample['boxlist'][0].float()[::S_stride] # (S, N, 4), N = n heads
     xylist = sample['xylist'][0].float()[::S_stride] # (S, N, 2)
@@ -90,7 +32,7 @@ def prep_sample(sample, N_max, S_stride=3):
     
     S, N, _ = xylist.shape
 
-    # randomly pick valid head id
+    # collect valid heads
     scorelist_sum = scorelist.sum(0) # (N)
     seq_present = scorelist_sum == S
     motion = torch.sqrt(torch.sum((xylist[1:] - xylist[:1])**2, dim=2)).sum(0) # (N)
@@ -98,60 +40,27 @@ def prep_sample(sample, N_max, S_stride=3):
     seq_vis_init = vislist[:2].sum(0) == 2
     seq_occlusion = vislist.sum(0) < 8
     seq_visible = vislist.sum(0) == 8
-    seq_valid = seq_present * seq_vis_init * seq_moving * seq_visible
-    seq_valid = seq_present * seq_vis_init * seq_moving * seq_occlusion
-    # seq_valid = seq_present * seq_vis_init * seq_occlusion
-    # seq_valid = seq_present * seq_moving * seq_vis_init * seq_occlusion
+    if req_occlusion:
+        seq_valid = seq_present * seq_vis_init * seq_moving * seq_occlusion
+    else:
+        seq_valid = seq_present * seq_vis_init * seq_moving * seq_visible
     if seq_valid.sum() == 0:
         return None, True
-    # head_id = np.random.choice(np.nonzero(seq_valid.cpu().numpy())[0])
-
-    # kp_xys = xylist[:, head_id:head_id+1].permute(1,0,2)
-    # vis = vislist[:, head_id:head_id+1].permute(1,0)
-
-    # print('seq_valid', seq_valid.shape, torch.sum(seq_valid))
-    # print('xylist', xylist.shape)
-    # print('vislist', vislist.shape)
     
     kp_xys = xylist[:, seq_valid> 0].unsqueeze(0)
     vis = vislist[:, seq_valid > 0].unsqueeze(0)
 
     N = kp_xys.shape[2]
-    print('N', N)
+    # print('N', N)
     if N > N_max:
         kp_xys = kp_xys[:,:,:N_max]
         vis = vis[:,:,:N_max]
-    
-    # print('rgbs', rgbs.shape)
-    # print('kp_xys', kp_xys.shape)
-    # print('vis', vis.shape)
-
-    # xmin = kp_xys[:,:,0].min()
-    # xmax = kp_xys[:,:,0].max()
-    # ymin = kp_xys[:,:,1].min()
-    # ymax = kp_xys[:,:,1].max()
-
-    # H = 320
-    # W = 512
-
-    # if xmax - xmin < W and ymax - ymin < H:
-    #     xmean = (xmin + xmax) / 2
-    #     ymean = (ymin + ymax) / 2
-    #     xstart = int(max(0, xmean - W/2))
-    #     ystart = int(max(0, ymean - H/2))
-
-    #     rgbs = rgbs[:, :, :, ystart:ystart+H, xstart:xstart+W]
-    #     kp_xys[:,:,0] -= xstart
-    #     kp_xys[:,:,1] -= ystart
-    # else:
-    #     return None, True
-
+        
     d = {
         'rgbs': rgbs, # B, S, C, H, W
         'kp_xys': kp_xys, # B, S, 2
         'vis': vis, # B, S
     }
-
     return d, False
 
 def prep_frame_for_dino(img, scale_size=[192]):
@@ -220,9 +129,6 @@ def label_propagation(h, w, feat_tar, list_frame_feats, list_segs, mask_neighbor
     feat_tar = F.normalize(feat_tar, dim=1, p=2)
     feat_sources = F.normalize(feat_sources, dim=1, p=2)
 
-    # print('feat_tar', feat_tar.shape)
-    # print('feat_sources', feat_sources.shape)
-
     feat_tar = feat_tar.unsqueeze(0).repeat(ncontext, 1, 1)
     aff = torch.exp(torch.bmm(feat_tar, feat_sources) / 0.1)
 
@@ -261,45 +167,27 @@ def norm_mask(mask):
     return mask
 
 def run_dino(dino, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
     import copy
 
     rgbs = d['rgbs'].cuda()
     trajs_g = d['kp_xys'].cuda() # B,S,N,2
     vis_g = d['vis'].cuda() # B,S,N
     valids = torch.ones_like(vis_g) # B,S,N
-
+    
     B, S, C, H, W = rgbs.shape
     B, S1, N, D = trajs_g.shape
 
-    if True:
-        B, S, C, H, W = rgbs.shape
-        rgbs_ = rgbs.reshape(B*S, C, H, W)
-        # H_, W_ = 768, 1280 # OOM
-        H_, W_ = 256*2, 256*3
-        # H_, W_ = 384*3, 128*4 # OOM
-        # H_, W_ = 384*2, 384*4
-        # H_, W_ = 1024, 1792
-        sy = H_/H
-        sx = W_/W
-        rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
-        H, W = H_, W_
-        rgbs = rgbs_.reshape(B, S, C, H, W)
-        trajs_g[:,:,:,0] *= sx
-        trajs_g[:,:,:,1] *= sy
-
-    # sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_black', trajs_g, torch.ones_like(rgbs)*-0.5)
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
-    
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
+    rgbs_ = rgbs.reshape(B*S, C, H, W)
+    H_, W_ = 256*2, 256*3
+    sy = H_/H
+    sx = W_/W
+    rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
+    H, W = H_, W_
+    rgbs = rgbs_.reshape(B, S, C, H, W)
+    trajs_g[:,:,:,0] *= sx
+    trajs_g[:,:,:,1] *= sy
 
     _, S, C, H, W = rgbs.shape
-
-    patch_size = 8
 
     assert(B==1)
     xy0 = trajs_g[:,0] # B, N, 2
@@ -328,7 +216,6 @@ def run_dino(dino, d, sw):
         featmaps = torch.cat(featmaps, dim=0)
     C = featmaps.shape[1]
     featmaps = featmaps.unsqueeze(0) # 1, S, C, h, w
-    # featmaps = F.normalize(featmaps, dim=2, p=2)
 
     xy0 = trajs_g[:, 0, :] # B, N, 2
     first_seg = torch.zeros((1, N, H_//patch_size, W_//patch_size))
@@ -372,21 +259,6 @@ def run_dino(dino, d, sw):
                 coord_e = trajs_e[0,cnt-1,n]
                 
             trajs_e[0, cnt, n] = coord_e
-            # if vis > 0:
-            #     coord_g = trajs_g[0,cnt,n] # 2
-            #     dist = torch.sqrt(torch.sum((coord_e-coord_g)**2, dim=0))
-            #     # print_('dist', dist)
-            #     area = torch.sum(segs[0,cnt])
-            #     # print_('0.2*sqrt(area)', 0.2*torch.sqrt(area))
-            #     thr = 0.2 * torch.sqrt(area)
-            #     correct = (dist < thr).float()
-            #     accs.append(correct)
-
-        # if len(accs) > 0:
-        #     print(torch.mean(torch.stack(accs)) * 100.0)
-
-    # pck = torch.mean(torch.stack(accs)) * 100.0
-    # metrics['pck'] = pck.item()
 
     ate = torch.norm(trajs_e - trajs_g, dim=-1) # B, S, N
     ate_all = utils.basic.reduce_masked_mean(ate, valids)
@@ -397,12 +269,10 @@ def run_dino(dino, d, sw):
         'ate_all': ate_all.item(),
         'ate_vis': ate_vis.item(),
         'ate_occ': ate_occ.item(),
-        # 'seq': seq_loss.mean().item(),
-        # 'vis': vis_loss.mean().item(),
-        # 'ce': ce_loss.mean().item()
     }
     
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
         gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
@@ -410,13 +280,11 @@ def run_dino(dino, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring', linewidth=2)
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
     
-    return total_loss, metrics
+    return metrics
 
 
 def run_singlepoint(model, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
-    # if True:
     rgbs = d['rgbs'].cuda()
     trajs_g = d['kp_xys'].cuda() # B,S,N,2
     vis_g = d['vis'].cuda() # B,S,N
@@ -424,52 +292,21 @@ def run_singlepoint(model, d, sw):
 
     B, S, C, H, W = rgbs.shape
     B, S1, N, D = trajs_g.shape
-    # print('N', N)
 
-    # print('run')
-    # print('rgbs', rgbs.shape)
-    # print('trajs_g', trajs_g.shape)
-    # print('vis_g', vis_g.shape)
-
-    #     # trajs_g = kp_xys.unsqueeze(2).float() # B, S, 1, 2
-    #     # vis_g = vis.unsqueeze(2).float() # B, S, 1
-    #     # valids = torch.ones_like(vis[:,0]) # B, 1
-    # else:
-    #     pass
-
-    if True:
-        B, S, C, H, W = rgbs.shape
-        rgbs_ = rgbs.reshape(B*S, C, H, W)
-        H_, W_ = 768, 1280
-        # H_, W_ = 384*2, 384*4
-        # H_, W_ = 1024, 1792
-        sy = H_/H
-        sx = W_/W
-        rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
-        H, W = H_, W_
-        rgbs = rgbs_.reshape(B, S, C, H, W)
-        trajs_g[:,:,:,0] *= sx
-        trajs_g[:,:,:,1] *= sy
-
-    # sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_black', trajs_g, torch.ones_like(rgbs)*-0.5)
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
-    
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
+    rgbs_ = rgbs.reshape(B*S, C, H, W)
+    H_, W_ = 768, 1280
+    sy = H_/H
+    sx = W_/W
+    rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
+    H, W = H_, W_
+    rgbs = rgbs_.reshape(B, S, C, H, W)
+    trajs_g[:,:,:,0] *= sx
+    trajs_g[:,:,:,1] *= sy
 
     _, S, C, H, W = rgbs.shape
 
-    # if sw is not None and sw.save_this:
-    #     sw.summ_rgbs('inputs_0/rgbs', utils.improc.preprocess_color(rgbs[0:1]).unbind(1))
-
-    # preds, preds2, cps, vis_e = model(trajs_g[:,0], rgbs, trajs_g=trajs_g, vis_g=vis_g, valids=valids, iters=6, sw=sw)
-    preds, preds2, vis_e, stats = model(trajs_g[:,0], rgbs, iters=6, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
+    preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, iters=6, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
     
-    seq_loss, vis_loss, ce_loss = stats
-
     ate = torch.norm(preds[-1] - trajs_g, dim=-1) # B, S, N
     ate_all = utils.basic.reduce_masked_mean(ate, valids)
     ate_vis = utils.basic.reduce_masked_mean(ate, valids*vis_g)
@@ -479,21 +316,12 @@ def run_singlepoint(model, d, sw):
         'ate_all': ate_all.item(),
         'ate_vis': ate_vis.item(),
         'ate_occ': ate_occ.item(),
-        'seq': seq_loss.mean().item(),
-        'vis': vis_loss.mean().item(),
-        'ce': ce_loss.mean().item()
     }
-    
-    # # loss, metrics = sequence_loss(preds, trajs_g, vis_g, valids, args.gamma)
-    # # total_loss += loss
-
-    # if metrics['epe'] > 50:
-    #     print('high epe; preparing special log')
-    #     sw.save_this = True
 
     trajs_e = preds[-1]
 
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
@@ -501,24 +329,11 @@ def run_singlepoint(model, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring', linewidth=2)
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
 
-        # animate_traj2ds_on_rgbs
-        # rgb_vis = []
-        # black_vis = []
-        # for trajs_e in preds2:
-        #     trajs_e = trajs_e.reshape(B_bak, N2_bak, S, 2).permute(0, 2, 1, 3) + pad
-        #     rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_rgb, only_return=True, cmap='coolwarm'))
-        #     black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_black, only_return=True, cmap='coolwarm'))
-        # sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
-        # sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
-
-    return total_loss, metrics
+    return metrics
 
 
 def run_raft(raft, d, sw):
-    total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
-
-    # if True:
     rgbs = d['rgbs'].cuda()
     trajs_g = d['kp_xys'].cuda() # B,S,N,2
     vis_g = d['vis'].cuda() # B,S,N
@@ -526,40 +341,16 @@ def run_raft(raft, d, sw):
 
     B, S, C, H, W = rgbs.shape
     B, S1, N, D = trajs_g.shape
-    # print('N', N)
 
-    # print('run')
-    # print('rgbs', rgbs.shape)
-    # print('trajs_g', trajs_g.shape)
-    # print('vis_g', vis_g.shape)
-
-    #     # trajs_g = kp_xys.unsqueeze(2).float() # B, S, 1, 2
-    #     # vis_g = vis.unsqueeze(2).float() # B, S, 1
-    #     # valids = torch.ones_like(vis[:,0]) # B, 1
-    # else:
-    #     pass
-
-    if True:
-        B, S, C, H, W = rgbs.shape
-        rgbs_ = rgbs.reshape(B*S, C, H, W)
-        # H_, W_ = 384*2, 384*4
-        H_, W_ = 768, 1280
-        sy = H_/H
-        sx = W_/W
-        rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
-        H, W = H_, W_
-        rgbs = rgbs_.reshape(B, S, C, H, W)
-        trajs_g[:,:,:,0] *= sx
-        trajs_g[:,:,:,1] *= sy
-
-    # sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_black', trajs_g, torch.ones_like(rgbs)*-0.5)
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
-    
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
+    rgbs_ = rgbs.reshape(B*S, C, H, W)
+    H_, W_ = 768, 1280
+    sy = H_/H
+    sx = W_/W
+    rgbs_ = F.interpolate(rgbs_, (H_, W_), mode='bilinear')
+    H, W = H_, W_
+    rgbs = rgbs_.reshape(B, S, C, H, W)
+    trajs_g[:,:,:,0] *= sx
+    trajs_g[:,:,:,1] *= sy
 
     _, S, C, H, W = rgbs.shape
 
@@ -593,12 +384,10 @@ def run_raft(raft, d, sw):
         'ate_all': ate_all.item(),
         'ate_vis': ate_vis.item(),
         'ate_occ': ate_occ.item(),
-        # 'seq': seq_loss.mean().item(),
-        # 'vis': vis_loss.mean().item(),
-        # 'ce': ce_loss.mean().item()
     }
     
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
         gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
@@ -606,60 +395,28 @@ def run_raft(raft, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring', linewidth=2)
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
 
-    return total_loss, metrics
+    return metrics
 
 
-def train(args):
-
-    # default coeffs (don't touch)
-    init_dir = ''
-    coeff_prob = 0.0
-    use_augs = False
-
-    exp_name = 'he00' # copy from other repo
+def train():
+    
+    # the idea in this file is to evaluate on head tracking
+    
+    exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
     
     init_dir = 'reference_model'
     
     stride = 4
-
-    ## choose hyps
     B = 1
     S = 8
     N = 128
-    lr = 1e-4
-    grad_acc = 1
+    S_stride = 3 # subsample the frames this much
 
-    S_stride = 3
-
-    max_iters = 100
     log_freq = 10
-    save_freq = 100000
     shuffle = False
-    do_val = False
-    val_every_step = True
-
-    # actual coeffs
-    coeff_prob = 1.0
-
-    use_augs = True
-    use_augs = False
 
     ## autogen a name
     model_name = "%02d_%d_%d" % (B, S, N)
-    lrn = "%.1e" % lr # e.g., 5.0e-04
-    lrn = lrn[0] + lrn[3:5] + lrn[-1] # e.g., 5e-4
-    model_name += "_%s" % lrn
-    all_coeffs = [
-        coeff_prob,
-    ]
-    all_prefixes = [
-        "p",
-    ]
-    for l_, l in enumerate(all_coeffs):
-        if l > 0:
-            model_name += "_%s%s" % (all_prefixes[l_], utils.basic.strnum(l))
-    if use_augs:
-        model_name += "_A"
     model_name += "_%s" % exp_name
 
     import datetime
@@ -670,8 +427,6 @@ def train(args):
     ckpt_dir = 'checkpoints/%s' % model_name
     log_dir = 'logs_test_on_heads'
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
-    if do_val:
-        writer_v = SummaryWriter(log_dir + '/' + model_name + '/v', max_queue=10, flush_secs=60)
 
     dataset = HeadTrackingDataset(seqlen=S*S_stride)
     train_dataloader = DataLoader(
@@ -693,37 +448,21 @@ def train(args):
 
     patch_size = 8
     dino = torch.hub.load('facebookresearch/dino:main', 'dino_vits%d' % patch_size).cuda()
-    for p in dino.parameters():
-        p.requires_grad = False
     dino.eval()
-    
 
     n_pool = 10000
-    loss_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    ce_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # epe_inv2inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    # flow_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    
     ate_all_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
     
-
-
     max_iters = len(train_dataloader)
     print('setting max_iters', max_iters)
     
     while global_step < max_iters:
-        # optimizer.zero_grad()
         
         read_start_time = time.time()
 
         global_step += 1
-        total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
         sw_t = utils.improc.Summ_writer(
             writer=writer_t,
@@ -746,13 +485,9 @@ def train(args):
         iter_start_time = time.time()
             
         with torch.no_grad():
-            # total_loss, metrics = run_singlepoint(singlepoint, sample, sw_t)
-            # total_loss, metrics = run_raft(raft, sample, sw_t)
-            total_loss, metrics = run_dino(dino, sample, sw_t)
-
-        # sw_t.summ_scalar('total_loss', total_loss)
-        # loss_pool_t.update([total_loss.detach().cpu().numpy()])
-        # sw_t.summ_scalar('pooled/total_loss', loss_pool_t.mean())
+            # metrics = run_singlepoint(singlepoint, sample, sw_t)
+            # metrics = run_raft(raft, sample, sw_t)
+            metrics = run_dino(dino, sample, sw_t)
 
         if metrics['ate_all'] > 0:
             ate_all_pool_t.update([metrics['ate_all']])
@@ -764,17 +499,10 @@ def train(args):
         sw_t.summ_scalar('pooled/ate_vis', ate_vis_pool_t.mean())
         sw_t.summ_scalar('pooled/ate_occ', ate_occ_pool_t.mean())
 
-        # if np.mod(global_step, save_freq)==0:
-        #     saverloader.save(ckpt_dir, optimizer, model, global_step, keep_latest=5)
-
         iter_time = time.time()-iter_start_time
-        print('%s; step %06d/%d; rtime %.2f; itime %.2f; loss = %.5f, ate = %.2f; ate_pooled = %.2f' % (
+        print('%s; step %06d/%d; rtime %.2f; itime %.2f; ate = %.2f; ate_pooled = %.2f' % (
             model_name, global_step, max_iters, read_time, iter_time,
-            total_loss.item(), metrics['ate_all'], ate_all_pool_t.mean()))
-
-        # if global_step % log_freq == 0:
-        #     print('epe_pooled = %.5f, epe_vis_pooled = %.5f, epe_inv_pooled = %.5f' % (
-        #         epe_pool_t.mean(), epe_vis_pool_t.mean(), epe_inv_pool_t.mean()))
+            metrics['ate_all'], ate_all_pool_t.mean()))
 
     writer_t.close()
 
@@ -786,7 +514,6 @@ if __name__ == '__main__':
     # parser.add_argument('--restore_ckpt', help="restore checkpoint")
     parser.add_argument('--small', action='store_true', help='use small model')
     # parser.add_argument('--validation', type=str, nargs='+')
-    # parser.add_argument('--lr', type=float, default=0.00002)
     # parser.add_argument('--num_steps', type=int, default=100)
     # parser.add_argument('--num_steps', type=int, default=10000)
     # parser.add_argument('--num_steps', type=int, default=300000)
@@ -794,14 +521,6 @@ if __name__ == '__main__':
     # parser.add_argument('--batch_size', type=int, default=6)
     # parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
     # parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
-    # parser.add_argument('--lr', type=float, default=4e-4)
-    # parser.add_argument('--lr', type=float, default=1e-4)
-    # parser.add_argument('--lr', type=float, default=0.00025)
-    parser.add_argument('--lr', type=float, default=2e-4)
-    # parser.add_argument('--lr', type=float, default=2e-4)
-    # parser.add_argument('--lr', type=float, default=1e-3)
-    # parser.add_argument('--lr', type=float, default=0.00025)
-    # parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     # parser.add_argument('--mixed_precision', action='store_false', help='use mixed precision')
     parser.add_argument('--iters', type=int, default=8)

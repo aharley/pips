@@ -1,4 +1,4 @@
-DONE
+OINGDONE
 
 make repo
 
@@ -18,23 +18,29 @@ clean up train.py
 
 add each file we think is critical: demo, trainer, and three tests
 
-DOING
-
 clean up flt test
-clean up davis test
+clean up badja test
 clean up heads test
 
+
+DOING
+
+edit train.py so you fire it with args
 
 
 SOON
 
 
-edit train.py so you fire it with args
+
+edit the testers so you can fire them with args
+
 
 figure out minimum reqs for a fresh env
 
 
 LATER
+
+make a video, and talk about how object-level tracking is not satisfactory
 
 
 

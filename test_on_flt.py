@@ -11,12 +11,12 @@ import utils.misc
 import utils.improc
 import random
 from utils.basic import print_, print_stats
-import flyingthingsdataset
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
+from flyingthingsdataset import FlyingThingsDataset
 
 device = 'cuda'
 patch_size = 8
@@ -362,9 +362,9 @@ def run_raft(raft, d, sw):
     return metrics
 
 
-def train(args):
+def train():
 
-    # the idea in this file is to test the model on flyingthings
+    # the idea in this file is to evaluate on flyingthings
     
     exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
     
@@ -376,7 +376,6 @@ def train(args):
     B = 1
     S = 8
     N = 16
-    lr = 1e-4
     grad_acc = 1
 
     S_stride = 3
@@ -385,8 +384,6 @@ def train(args):
     log_freq = 100
     save_freq = 100000
     shuffle = True
-    do_val = False
-    val_every_step = True
     subset = 'all'
     crop_size = (384,512) # the raw data is 540,960
 
@@ -394,9 +391,6 @@ def train(args):
 
     ## autogen a name
     model_name = "%02d_%d_%d" % (B, S, N)
-    lrn = "%.1e" % lr # e.g., 5.0e-04
-    lrn = lrn[0] + lrn[3:5] + lrn[-1] # e.g., 5e-4
-    model_name += "_%s" % lrn
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
@@ -409,12 +403,10 @@ def train(args):
     ckpt_dir = 'checkpoints/%s' % model_name
     log_dir = 'logs_test_on_flt'
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
-    if do_val:
-        writer_v = SummaryWriter(log_dir + '/' + model_name + '/v', max_queue=10, flush_secs=60)
 
     def worker_init_fn(worker_id):
         np.random.seed(np.random.get_state()[1][0] + worker_id)
-    train_dataset = flyingthingsdataset.FlyingThingsDataset(
+    train_dataset = FlyingThingsDataset(
         dset='TEST', subset=subset,
         use_augs=use_augs,
         N=N, S=S,
@@ -504,8 +496,6 @@ if __name__ == '__main__':
     # parser.add_argument('--stage', help="determines which dataset to use for training") 
     # parser.add_argument('--restore_ckpt', help="restore checkpoint")
     parser.add_argument('--small', action='store_true', help='use small model')
-    # parser.add_argument('--validation', type=str, nargs='+')
-    # parser.add_argument('--lr', type=float, default=0.00002)
     # parser.add_argument('--num_steps', type=int, default=100)
     # parser.add_argument('--num_steps', type=int, default=10000)
     # parser.add_argument('--num_steps', type=int, default=300000)
@@ -513,14 +503,6 @@ if __name__ == '__main__':
     # parser.add_argument('--batch_size', type=int, default=6)
     # parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
     # parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
-    # parser.add_argument('--lr', type=float, default=4e-4)
-    # parser.add_argument('--lr', type=float, default=1e-4)
-    # parser.add_argument('--lr', type=float, default=0.00025)
-    parser.add_argument('--lr', type=float, default=2e-4)
-    # parser.add_argument('--lr', type=float, default=2e-4)
-    # parser.add_argument('--lr', type=float, default=1e-3)
-    # parser.add_argument('--lr', type=float, default=0.00025)
-    # parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     # parser.add_argument('--mixed_precision', action='store_false', help='use mixed precision')
     parser.add_argument('--iters', type=int, default=8)
@@ -532,6 +514,6 @@ if __name__ == '__main__':
     parser.add_argument('--add_noise', action='store_true')
     args = parser.parse_args()
     
-    train(args)
+    train()
 
 
