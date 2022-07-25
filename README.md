@@ -11,9 +11,17 @@ This repo will be updated soon with more content and instructions.
 ## Requirements
 
 
+
 ## Demo
 
-For a quick demo, try: 
+
+To download our reference model, run this script:
+
+```
+sh get_reference_model.sh
+```
+
+To run this model on some sample images, run this script:
 ```
 python demo.py
 ```
