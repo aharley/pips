@@ -83,17 +83,17 @@ loading occluders [...] found 7856 occluders in ../flyingthings (dset=TRAIN, sub
 not using augs in val
 loading FlyingThingsDataset [...] found 2542 samples in ../flyingthings (dset=TEST, subset=all, version=ad)
 loading occluders...found 1631 occluders in ../flyingthings (dset=TEST, subset=all, version=al)
+warning: updated load_fails (on this worker): 1/13085...
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000001/100000; rtime 9.79; itime 20.24; loss = 40.30593
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000002/100000; rtime 0.01; itime 0.37; loss = 43.12448
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000003/100000; rtime 0.01; itime 0.36; loss = 36.60324
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000004/100000; rtime 0.01; itime 0.38; loss = 40.91223
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000005/100000; rtime 0.01; itime 0.35; loss = 79.32227
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000006/100000; rtime 0.01; itime 0.53; loss = 22.14469
-warning: updated load_fails (on this worker): 1/13085...
 1_8_128_I6_3e-4_A_tb89_21:34:46; step 000007/100000; rtime 0.04; itime 0.46; loss = 24.75386
 [...]
 ```
-The load_fail warnings (which are typically harmless) indicate when the dataloader fails to get `N` trajectories for a given video (but it will of course retry). If `N` is increased, or the crop size is decreased, you can expect this warning to occur more frequently, but as long as your "read time" `rtime` is small, then things are basically OK. 
+Occasional load_fail warnings are basically harmless. They indicate when the dataloader fails to get `N` trajectories for a given video, which simply causes a retry. If you greatly increase `N` (the number of trajectories), or reduce the crop size, you can expect this warning to occur more frequently. As long as your `rtime` (read time) is small, then things are basically OK. 
 
 
 ## Testing
