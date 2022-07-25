@@ -74,7 +74,7 @@ To train a model on the flyingthings++ dataset:
 python train.py
 ```
 
-It should print some diagnostic information about dataloading, then print per iteration, until max_iters is reached.
+It should print some diagnostic information about the model and data, then print a message for each iteration.
 
 ```
 model_name 1_8_128_I6_3e-4_A_tb89_21:34:46
