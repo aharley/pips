@@ -13,7 +13,7 @@ import json
 import imageio
 import cv2
 
-class HeadTrackingDataset(torch.utils.data.Dataset):
+class CrohdDataset(torch.utils.data.Dataset):
     def __init__(self, seqlen=8, dset='t'):
         dataset_location = "../head_tracking/HT21"
         label_location = "../head_tracking/HT21Labels"

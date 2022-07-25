@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
-from headtrackingdataset import HeadTrackingDataset
+from crohddataset import CrohdDataset
 
 device = 'cuda'
 patch_size = 8
@@ -400,7 +400,7 @@ def run_raft(raft, d, sw):
 
 def train():
     
-    # the idea in this file is to evaluate on head tracking
+    # the idea in this file is to evaluate on head tracking in croHD
     
     exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
     
@@ -425,10 +425,10 @@ def train():
     print('model_name', model_name)
 
     ckpt_dir = 'checkpoints/%s' % model_name
-    log_dir = 'logs_test_on_heads'
+    log_dir = 'logs_test_on_crohd'
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
 
-    dataset = HeadTrackingDataset(seqlen=S*S_stride)
+    dataset = CrohdDataset(seqlen=S*S_stride)
     train_dataloader = DataLoader(
         dataset,
         batch_size=B,
@@ -532,6 +532,6 @@ if __name__ == '__main__':
     parser.add_argument('--add_noise', action='store_true')
     args = parser.parse_args()
     
-    train(args)
+    train()
 
 
