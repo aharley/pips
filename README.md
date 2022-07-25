@@ -100,18 +100,13 @@ Occasional `load_fails` warnings are typically harmless. They indicate when the 
 
 ## Testing
 
-To test the model in Flyingthings++, run this:
-```
-python test_on_flt.py
-```
+To evaluate the model in Flyingthings++, run `python test_on_flt.py`
 
+To evaluate the model in BAJDA, run `python test_on_badja.py`
 
-```
-../badja_data/DAVIS
-```
+To evaluate the model in CroHD, run `python test_on_crohd.py`
 
-
-
+To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
 
 
 ### Citation
