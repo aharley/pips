@@ -142,7 +142,6 @@ def run_dino(dino, d, sw):
     B, S, C, H, W = rgbs.shape
     B, S1, N, D = trajs_g.shape
 
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
 
     # trajs_g = trajs.clone()
     # vis_g = vis.clone()
@@ -225,21 +224,6 @@ def run_dino(dino, d, sw):
                 coord_e = trajs_e[0,cnt-1,n]
                 
             trajs_e[0, cnt, n] = coord_e
-            # if vis > 0:
-            #     coord_g = trajs_g[0,cnt,n] # 2
-            #     dist = torch.sqrt(torch.sum((coord_e-coord_g)**2, dim=0))
-            #     # print_('dist', dist)
-            #     area = torch.sum(segs[0,cnt])
-            #     # print_('0.2*sqrt(area)', 0.2*torch.sqrt(area))
-            #     thr = 0.2 * torch.sqrt(area)
-            #     correct = (dist < thr).float()
-            #     accs.append(correct)
-
-        # if len(accs) > 0:
-        #     print(torch.mean(torch.stack(accs)) * 100.0)
-
-    # pck = torch.mean(torch.stack(accs)) * 100.0
-    # metrics['pck'] = pck.item()
 
     ate = torch.norm(trajs_e - trajs_g, dim=-1) # B, S, N
     ate_all = utils.basic.reduce_masked_mean(ate, valids)
@@ -253,6 +237,7 @@ def run_dino(dino, d, sw):
     }
     
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
         gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
@@ -278,24 +263,9 @@ def run_singlepoint(model, d, sw):
 
     assert(torch.sum(valids)==B*S*N)
 
-    # sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_black', trajs_g, torch.ones_like(rgbs)*-0.5)
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
-    
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
-
     _, S, C, H, W = rgbs.shape
 
-    # if sw is not None and sw.save_this:
-    #     sw.summ_rgbs('inputs_0/rgbs', utils.improc.preprocess_color(rgbs[0:1]).unbind(1))
-
-    # preds, preds2, cps, vis_e = model(trajs_g[:,0], rgbs, trajs_g=trajs_g, vis_g=vis_g, valids=valids, iters=6, sw=sw)
-    preds, preds2, vis_e, stats = model(trajs_g[:,0], rgbs, iters=6, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
-    
-    seq_loss, vis_loss, ce_loss = stats
+    preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, iters=6, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
 
     ate = torch.norm(preds[-1] - trajs_g, dim=-1) # B, S, N
     ate_all = utils.basic.reduce_masked_mean(ate, valids)
@@ -311,6 +281,7 @@ def run_singlepoint(model, d, sw):
     trajs_e = preds[-1]
 
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
@@ -319,14 +290,14 @@ def run_singlepoint(model, d, sw):
         sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring', linewidth=2)
 
         # animate_traj2ds_on_rgbs
-        # rgb_vis = []
-        # black_vis = []
-        # for trajs_e in preds2:
-        #     trajs_e = trajs_e.reshape(B_bak, N2_bak, S, 2).permute(0, 2, 1, 3) + pad
-        #     rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_rgb, only_return=True, cmap='coolwarm'))
-        #     black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_black, only_return=True, cmap='coolwarm'))
-        # sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
-        # sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
+        rgb_vis = []
+        black_vis = []
+        for trajs_e_ in preds_anim:
+            trajs_e_ = trajs_e_ + pad
+            rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e_[0:1], gt_rgb, only_return=True, cmap='coolwarm'))
+            black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e_[0:1], gt_black, only_return=True, cmap='coolwarm'))
+        sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
+        sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
 
     return metrics
 
@@ -344,15 +315,6 @@ def run_raft(raft, d, sw):
     B, S, N, D = trajs_g.shape
 
     assert(torch.sum(valids)==B*S*N)
-
-    # sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_black', trajs_g, torch.ones_like(rgbs)*-0.5)
-    sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
-    
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
 
     _, S, C, H, W = rgbs.shape
 
@@ -389,6 +351,7 @@ def run_raft(raft, d, sw):
     }
     
     if sw is not None and sw.save_this:
+        sw.summ_traj2ds_on_rgbs('inputs_0/orig_trajs_on_rgbs', trajs_g, utils.improc.preprocess_color(rgbs), cmap='winter', linewidth=2)
         sw.summ_traj2ds_on_rgbs('outputs/trajs_on_rgbs', trajs_e[0:1], utils.improc.preprocess_color(rgbs[0:1]), cmap='spring', linewidth=2)
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
         gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('inputs_0_all/single_trajs_on_rgb', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, cmap='winter', frame_id=metrics['ate_all'], only_return=True, linewidth=2))
