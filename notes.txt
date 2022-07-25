@@ -13,10 +13,35 @@ make decent flt instructions
 
 DOING
 
+add puppy demo
+
+add instructions for demo
+
+add min files for demo
+
+
+
+add each file we think is critical: demo, trainer, and three tests
+
+make trainer work
+
+make davis test work
+
+figure out minimum reqs for a fresh env, using davis test
+
+
+
+
 
 
 
 SOON
+
+clean up train
+
+clean up flt test
+clean up davis test
+clean up heads test
 
 
 
