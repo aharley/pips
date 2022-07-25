@@ -16,20 +16,18 @@ add image files for demo
 
 clean up train.py
 
+add each file we think is critical: demo, trainer, and three tests
 
 DOING
 
 clean up flt test
-
-
-add each file we think is critical: demo, trainer, and three tests
+clean up davis test
+clean up heads test
 
 
 
 SOON
 
-clean up davis test
-clean up heads test
 
 edit train.py so you fire it with args
 
