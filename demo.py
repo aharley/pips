@@ -84,7 +84,7 @@ def train():
     
     exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
 
-    init_dir = 'saved_checkpoints/4hv_8_128_I6_4e-4_p1_A_tb79_09:11:39'
+    init_dir = 'reference_model'
 
     ## choose hyps
     B = 1
