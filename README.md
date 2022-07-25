@@ -4,7 +4,7 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 **[[Paper](https://arxiv.org/abs/2204.04153)] [[Project Page](https://particle-video-revisited.github.io/)]**
 
-<img src='https://particle-video-revisited.github.io/images/fig1.png'>
+<img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
 This repo will be updated soon with more content and instructions.
 
@@ -21,7 +21,7 @@ To download our reference model, run this script:
 sh get_reference_model.sh
 ```
 
-To run this model on some sample images, run this script:
+To run this model on a sample video, run this script:
 ```
 python demo.py
 ```
@@ -37,20 +37,6 @@ The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `d
 
 
 ## 
-
-
-
-
-
-## Training
-
-
-## Testing
-
-
-```
-../badja_data/DAVIS
-```
 
 
 
@@ -78,6 +64,25 @@ In parallel, you can run `python make_occlusions.py`. This will put 537M of occl
 This data will be loaded and joined with corresponding rgb by the `FlyingThingsDataset` class in `flyingthingsdataset.py`, when training and testing.
 
 (The suffixes "ad" and "al" are version counters.)
+
+
+## Training
+
+To train a model on the flyingthings++ dataset:
+
+```
+python train.py
+```
+
+
+## Testing
+
+
+```
+../badja_data/DAVIS
+```
+
+
 
 
 
