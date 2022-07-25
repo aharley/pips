@@ -399,7 +399,7 @@ def bilinear_sampler(img, coords, mode='bilinear', mask=False):
     return img
 
 def coords_grid(batch, ht, wd):
-    coords = torch.meshgrid(torch.arange(ht), torch.arange(wd))
+    coords = torch.meshgrid(torch.arange(ht), torch.arange(wd), indexing='ij')
     coords = torch.stack(coords[::-1], dim=0).float()
     return coords[None].repeat(batch, 1, 1, 1)
 
@@ -459,7 +459,7 @@ class CorrBlock:
             
             dx = torch.linspace(-r, r, 2*r+1)
             dy = torch.linspace(-r, r, 2*r+1)
-            delta = torch.stack(torch.meshgrid(dy, dx), axis=-1).to(coords.device) 
+            delta = torch.stack(torch.meshgrid(dy, dx, indexing='ij'), axis=-1).to(coords.device) 
             # print('dx', dx.shape)
             # print('delta', delta.shape)
 
