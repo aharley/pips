@@ -147,8 +147,9 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
     return total_loss, metrics
     
 def train():
+    
+    # the idea in this file is to train a PIPs (singlepoint) model in flyingthings++
 
-    # default coeffs (don't touch)
     init_dir = ''
     use_augs = False
     load_optimizer = False
@@ -156,7 +157,6 @@ def train():
     ignore_load = None
     use_scheduler = False
 
-    # the idea here is to train a basic model on the upgraded flt
     exp_name = 'tb00' # I=6 < ok but still slowing
     exp_name = 'tb01' # N=512 < OOM
     exp_name = 'tb02' # I=4
@@ -354,9 +354,6 @@ def train():
     model_name += "_%s" % lrn
     if cache_len:
         model_name += "_cache%d" % cache_len
-    for l_, l in enumerate(all_coeffs):
-        if l > 0:
-            model_name += "_%s%s" % (all_prefixes[l_], utils.basic.strnum(l))
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
