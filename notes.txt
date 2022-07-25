@@ -22,18 +22,18 @@ clean up flt test
 clean up badja test
 clean up heads test
 
+add davis test/vis
+
 
 DOING
 
 edit train.py so you fire it with args
 
 
+
 SOON
 
-
-
 edit the testers so you can fire them with args
-
 
 figure out minimum reqs for a fresh env
 

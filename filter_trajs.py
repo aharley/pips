@@ -38,8 +38,6 @@ def filter_trajs(trajs_e, all_masks, all_flows_f, all_flows_b):
     for s in range(S-1):
         ff = utils.samp.bilinear_sample2d(all_flows_f[:,s], trajs_e[:,s,:,0].round(), trajs_e[:,s,:,1].round()).permute(0,2,1).reshape(-1, 2) # N,2
         bf = utils.samp.bilinear_sample2d(all_flows_b[:,s], trajs_e[:,s+1,:,0].round(), trajs_e[:,s+1,:,1].round()).permute(0,2,1).reshape(-1, 2) # N,2
-        # ff = utils.samp.bilinear_sample2d(flows_f[:,s], trajs_e[:,s,:,0], trajs_e[:,s,:,1]).permute(0,2,1).reshape(-1, 2) # N,2
-        # bf = utils.samp.bilinear_sample2d(flows_b[:,s], trajs_e[:,s+1,:,0], trajs_e[:,s+1,:,1]).permute(0,2,1).reshape(-1, 2) # N,2
         dist = torch.norm(ff+bf, dim=1)
         # print_stats('dist', dist)
         fb_ok = fb_ok & (dist < 0.5)
