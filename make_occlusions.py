@@ -2,52 +2,29 @@ import time
 import numpy as np
 import timeit
 import imageio
-import matplotlib
-# import tensorflow as tf
 import io
 import os
 import math
 from PIL import Image
-matplotlib.use('Agg') # suppress plot showing
 import sys
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import math
 import torch.nn.functional as F
-
-
 import utils.py
-# import utils.box
 import utils.misc
 import utils.improc
-# import utils.vox
-# import utils.grouping
 from utils.basic import readPFM, print_stats
-from tqdm import tqdm
 import random
 import glob
-# import skimage.morphology
 import scipy.spatial
-
-import flow_linker
-import alt_linker
 from filter_trajs import filter_trajs
-
 from tensorboardX import SummaryWriter
-# import ipdb
-# st = ipdb.set_trace
 
 flt3d_path = "../flyingthings"
-dset = "TRAIN"
-# dset = "TEST"
 dsets = ["TRAIN", "TEST"]
 subsets = ["A", "B", "C"]
-# subsets = ["B", "C"]
-# subsets = ["A"]
-# subsets = ["B"]
-# subsets = ["C"]
 
 device = 'cuda'
 
@@ -68,10 +45,6 @@ mod = 'ak' # fix bug in filter_trajs, for visibility on last frame
 mod = 'al' # hu_thr=0.98
 
 min_size = 32*32
-
-# fl = flow_linker.Linker()
-fl = alt_linker.Linker()
-
 
 def readImage(name):
     if name.endswith('.pfm') or name.endswith('.PFM'):
@@ -105,21 +78,12 @@ def consider_id(id_, all_rgbs, all_masks, all_flows_f, all_flows_b,
     singles_sums_ = singles_sums[singles_sums > 0]
     mean_nonzero_size = torch.mean(singles_sums[singles_sums > 0])
 
-    # print('id_', id_)
-
-    # min size
-
     if mean_nonzero_size < min_size*2:
         return None, None, None
     
     # min presence
     if len(singles_sums_) < 3:
         return None, None, None
-
-    # print('mean_nonzero_size', mean_nonzero_size)
-    # if True:
-
-    # print('singles', singles.shape)
 
     singles_fat = singles.clone()
     
@@ -137,25 +101,17 @@ def consider_id(id_, all_rgbs, all_masks, all_flows_f, all_flows_b,
 
                 hu_match_amount = torch.sum(inter)/torch.sum(union)
 
-                # print('close', close.shape)
-                # print('fat', singles_fat[0,s,0].shape)
-                # print('fat sum before', torch.sum(singles_fat[:,s]))
                 singles_fat[0,s,0] = singles_fat[0,s,0]*0.5 + close*0.5
-                # singles_fat[0,s,0] = close
-                # print('fat sum after', torch.sum(singles_fat[:,s]))
                 
                 if hu_match_amount < hu_thr:
                     return None, None, None
             except Exception as e:
                 # if the shape broke my convex hull function, just drop it
                 return None, None, None
-            
-                # hu_match_amount = torch.tensor(0.0, device='cuda')
         else:
             hu_match_amount = torch.tensor(1.0, device='cuda')
         hu_match_amounts.append(hu_match_amount)
 
-    # fw_found_amounts = []
     fw_match_amounts = []
     for s in range(S-1):
         single = singles[:,s]
@@ -173,21 +129,12 @@ def consider_id(id_, all_rgbs, all_masks, all_flows_f, all_flows_b,
             ys_ = (ys + delta[1]).round().long()
 
             inds_ok = (xs_ >= 0) & (xs_ <= W-1) & (ys_ >= 0) & (ys_ <= H-1)
-            # id_first = id_first[inds_ok]
             xs_ = xs_[inds_ok]
             ys_ = ys_[inds_ok]
 
             if len(xs_) > min_size:
-                # print('id_first[:5]', id_first[:5])
-
-                # print('len(xs_)', len(xs_))
-                
                 match_next = single_next[0,0,ys_,xs_]
-                # print('id_new[:10]', id_new[:10])
-                # id_match = (id_new==id_).float()
                 fw_match_amount = torch.mean(match_next)
-                # print('match_amount on frame %d' % s, match_amount)
-
                 if fw_match_amount < fw_thr:
                     return None, None, None
             else:
@@ -255,8 +202,6 @@ def consider_id(id_, all_rgbs, all_masks, all_flows_f, all_flows_b,
         trajs_e = torch.zeros((1,S,0,2), dtype=torch.float32, device='cuda')
 
     return singles_fat, trajs_e, fw_match_amounts
-
-
 
 def helper(rgb_path, mask_path, flow_path, out_dir, folder_name, lr, start_ind, sw=None, include_vis=False):
     
@@ -327,13 +272,8 @@ def helper(rgb_path, mask_path, flow_path, out_dir, folder_name, lr, start_ind, 
         singles, trajs, stats = consider_id(id_, all_rgbs, all_masks, all_flows_f, all_flows_b)
 
         if singles is not None:
-            # print('trajs', trajs.shape)
-
             N = trajs.shape[2]
-            # occ_count += 1
-
             if include_vis:
-                # sw.summ_rgbs('inputs_%d/singles_rgb_%d' % (start_ind, id_.item()), ((singles*(all_rgbs+0.5))-0.5).unbind(1), frame_ids=stats)
                 sw.summ_rgbs('inputs_%d/singles_rgb_%d' % (start_ind, ii), ((singles*(all_rgbs+0.5))-0.5).unbind(1), frame_ids=stats)
                 max_show = 100
                 if trajs.shape[2] > max_show:
@@ -346,21 +286,12 @@ def helper(rgb_path, mask_path, flow_path, out_dir, folder_name, lr, start_ind, 
             trajs = trajs[0].detach().cpu().numpy().astype(np.float16)
             id_ = id_.detach().cpu().numpy()
 
-            # print('trajs', trajs.shape)
-            # if N == 0:
-            #     trajs = None
-
-            # print('%did_', id_)
-            # print('id_', id_, '%d' % int(id_))
-            # print('id_', id_)
             save_d['%d' % int(id_)] = trajs
             all_trajs.append(trajs)
             all_ids.append(id_)
         # endif not None
     # end loop over ids
 
-    # print('save_d', save_d)
-    # np.savez(out_f, all_trajs=all_trajs, all_ids=all_ids)
     np.save(out_f, save_d)
     sys.stdout.write('.')
     sys.stdout.flush()
@@ -371,11 +302,10 @@ def go():
     log_freq = 1
     include_vis = False
 
-    model_name = "occ"
     log_dir = 'logs_make_occlusions'
     import datetime
     exp_date = datetime.datetime.now().strftime('%H:%M:%S')
-    exp_name = '%s_%s' % (model_name, exp_date)
+    exp_name = '%s' % (exp_date)
     print(exp_name)
     writer = SummaryWriter(log_dir + '/' + exp_name, max_queue=10, flush_secs=60)
 
@@ -405,11 +335,9 @@ def go():
                             fps=5,
                             scalar_freq=100,
                             just_gif=True)
-                        # helper(out_dir, folder_name, lr, sw=sw)
                         helper(rgb_path, mask_path, flow_path, out_dir, folder_name, lr, start_ind, sw=sw, include_vis=include_vis)
                         sys.stdout.flush()
             print('done')
-            
 
 if __name__ == "__main__":
     go()
