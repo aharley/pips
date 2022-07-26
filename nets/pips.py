@@ -500,9 +500,9 @@ class CorrBlock:
             # print('corrs level', corrs.shape)
             self.corrs_pyramid.append(corrs)
 
-class Singlepoint(nn.Module):
+class Pips(nn.Module):
     def __init__(self, S=8, stride=8):
-        super(Singlepoint, self).__init__()
+        super(Pips, self).__init__()
 
         self.S = S
         self.stride = stride

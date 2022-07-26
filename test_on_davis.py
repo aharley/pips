@@ -4,7 +4,7 @@ import numpy as np
 import timeit
 import cv2
 import saverloader
-from nets.singlepoint import Singlepoint
+from nets.pips import Pips
 import utils.basic
 import utils.improc
 import random
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     data_path = '../badja_data/DAVIS'
 
     stride = 8
-    model = Singlepoint(stride=stride).cuda()
+    model = Pips(stride=stride).cuda()
     _ = saverloader.load(init_dir, model)
     for param in model.parameters():
         param.requires_grad = False

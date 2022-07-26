@@ -3,7 +3,7 @@ import numpy as np
 import timeit
 import saverloader
 from nets.raftnet import Raftnet
-from nets.singlepoint import Singlepoint
+from nets.pips import Pips
 import random
 from utils.basic import print_, print_stats
 import torch
@@ -64,7 +64,7 @@ def run_dino(dino, d, sw):
     return metrics
 
 
-def run_singlepoint(model, d, sw):
+def run_pips(model, d, sw):
 
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
     occs = d['occs'].cuda().float() # B, S, 1, H, W
@@ -234,7 +234,7 @@ def main(
     global_step = 0
 
     if modeltype=='pips':
-        model = Singlepoint(S=S, stride=stride).cuda()
+        model = Pips(S=S, stride=stride).cuda()
         _ = saverloader.load(init_dir, model)
         model.eval()
     elif modeltype=='raft':
@@ -281,7 +281,7 @@ def main(
             
         with torch.no_grad():
             if modeltype=='pips':
-                metrics = run_singlepoint(model, sample, sw_t)
+                metrics = run_pips(model, sample, sw_t)
             elif modeltype=='raft':
                 metrics = run_raft(model, sample, sw_t)
             elif modeltype=='dino':

@@ -2,7 +2,7 @@ import time
 import numpy as np
 import timeit
 import saverloader
-from nets.singlepoint import Singlepoint
+from nets.pips import Pips
 # import utils.misc
 import utils.improc
 import random
@@ -184,7 +184,7 @@ def main(
         device='cuda:0',
         device_ids=[0],
 ):
-    # the idea in this file is to train a PIPs model (nets/singlepoint.py) in flyingthings++
+    # the idea in this file is to train a PIPs model (nets/pips.py) in flyingthings++
 
     assert(crop_size[0] % 128 == 0)
     assert(crop_size[1] % 128 == 0)
@@ -258,7 +258,7 @@ def main(
             drop_last=False)
         val_iterloader = iter(val_dataloader)
     
-    model = Singlepoint(stride=stride).cuda()
+    model = Pips(stride=stride).cuda()
     model = torch.nn.DataParallel(model, device_ids=device_ids)
     parameters = list(model.parameters())
     if use_scheduler:

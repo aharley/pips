@@ -6,7 +6,7 @@ from PIL import Image
 import cv2
 import saverloader
 import imageio.v2 as imageio
-from nets.singlepoint import Singlepoint
+from nets.pips import Pips
 import utils.improc
 import random
 import glob
@@ -111,7 +111,7 @@ def train():
 
     global_step = 0
 
-    model = Singlepoint(stride=4).cuda()
+    model = Pips(stride=4).cuda()
     parameters = list(model.parameters())
     if init_dir:
         _ = saverloader.load(init_dir, model)

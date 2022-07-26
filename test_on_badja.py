@@ -3,7 +3,7 @@ import numpy as np
 import timeit
 import saverloader
 from nets.raftnet import Raftnet
-from nets.singlepoint import Singlepoint
+from nets.pips import Pips
 import random
 from utils.basic import print_, print_stats
 import torch
@@ -22,7 +22,7 @@ patch_size = 8
 random.seed(125)
 np.random.seed(125)
 
-def run_singlepoint(singlepoint, d, sw):
+def run_pips(pips, d, sw):
     metrics = {}
 
     file0 = str(d['file0'])
@@ -80,7 +80,7 @@ def run_singlepoint(singlepoint, d, sw):
             rgb_seq = torch.cat([rgb_seq, rgb_seq[:,-1].unsqueeze(1).repeat(1,8-S_local,1,1,1)], dim=1)
             # print('rgb_seq (%d:%d)' % (cur_frame, end_frame), rgb_seq.shape)
 
-            outs = singlepoint(traj_e[:,cur_frame].reshape(1, -1, 2), rgb_seq, iters=6, feat_init=feat_init, return_feat=True)
+            outs = pips(traj_e[:,cur_frame].reshape(1, -1, 2), rgb_seq, iters=6, feat_init=feat_init, return_feat=True)
             preds = outs[0]
             vis = outs[2] # B, S, 1
             feat_init = outs[3]
@@ -572,7 +572,7 @@ def main(
     global_step = 0
 
     if modeltype=='pips':
-        model = Singlepoint(S=S, stride=stride).cuda()
+        model = Pips(S=S, stride=stride).cuda()
         _ = saverloader.load(init_dir, model)
         model.eval()
     elif modeltype=='raft':
@@ -611,7 +611,7 @@ def main(
             
         with torch.no_grad():
             if modeltype=='pips':
-                metrics = run_singlepoint(model, sample, sw_t)
+                metrics = run_pips(model, sample, sw_t)
             elif modeltype=='raft':
                 metrics = run_raft(model, sample, sw_t)
             elif modeltype=='dino':
