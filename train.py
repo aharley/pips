@@ -15,6 +15,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
+from fire import Fire
 
 device = 'cuda'
 patch_size = 8
@@ -146,197 +147,49 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
 
     return total_loss, metrics
     
-def train():
-    
-    # the idea in this file is to train a PIPs (singlepoint) model in flyingthings++
+def main(
+        exp_name='debug',
+        # training
+        B=1, # batchsize 
+        S=8, # seqlen of the data/model
+        N=128, # number of particles to sample from the data
+        horz_flip=True, # this causes B*=2
+        vert_flip=True, # this causes B*=2
+        stride=8, # spatial stride of the model 
+        I=6, # inference iters of the model
+        crop_size=(384,512), # the raw data is 540,960
+        use_augs=True, # resizing/jittering/color/blur augs
+        # dataset
+        dataset_location='../flyingthings',
+        subset='all', # dataset subset
+        shuffle=True, # dataset shuffling
+        cache_len=0, # how many samples to cache into ram (usually for debug)
+        cache_freq=99999999, # how often to refresh the cache
+        # optimization
+        lr=3e-4,
+        grad_acc=1,
+        max_iters=100000,
+        use_scheduler=False,
+        # summaries
+        log_dir='logs_train',
+        log_freq=500,
+        val_freq=50,
+        # saving/loading
+        ckpt_dir='checkpoints',
+        save_freq=1000,
+        keep_latest=3,
+        init_dir='',
+        load_optimizer=False,
+        load_step=False,
+        ignore_load=None,
+        # cuda
+        device='cuda:0',
+        device_ids=[0,1,2,3],
+):
+    # the idea in this file is to train a PIPs model (nets/singlepoint.py) in flyingthings++
 
-    init_dir = ''
-    use_augs = False
-    load_optimizer = False
-    load_step = False
-    ignore_load = None
-    use_scheduler = False
-
-    exp_name = 'tb00' # I=6 < ok but still slowing
-    exp_name = 'tb01' # N=512 < OOM
-    exp_name = 'tb02' # I=4
-    exp_name = 'tb03' # B1, but double the data inside the runner; ensure it's being split < yes. but still some hiccups
-    exp_name = 'tb04' # I=8
-    exp_name = 'tb05' # I=12, N128
-    exp_name = 'tb06' # I=8, N128, higher resolution input, to slow down the cnn < 0.6s
-    exp_name = 'tb07' # 256 < OOM
-    exp_name = 'tb08' # 384,384; 256 < 0.9s; let's go with this. 
-    exp_name = 'tb09' # sb
-    exp_name = 'tb10' # one more flip; 4gpu
-    exp_name = 'tb11' # 4gpu proper; sb
-    exp_name = 'tb12' # interactive, chasing (but maybe dying in 8h) < ah, oom. and the other is too probably
-    exp_name = 'tb13' # N=128, to not go oom < 0.9
-    exp_name = 'tb14' # N=256, crop 256,384 < 1.0
-    exp_name = 'tb15' # do lots of val steps, to tempt oom
-    # looks great
-    exp_name = 'tb16' # val_freq 100; sb
-    exp_name = 'tb17' # interactive, chase
-    exp_name = 'tb18' # val_freq 50; radius=3, levels=4 (instead of 4,3)
-    # next i want to investigate using bilinear samples from the featmap, to help the model judge visibility and so on
-    exp_name = 'tb19' # quick; no flips; b1; 1gpu
-    exp_name = 'tb20' # stride 1/4 instead of 1/8
-    exp_name = 'tb21' # quick vis
-    exp_name = 'tb22' # cat finer features too
-    exp_name = 'tb23' # conv2 3x3, then norm, relu, conv3 
-    exp_name = 'tb24' # show gt in the tff vis; 10 itesr
-    exp_name = 'tb25' # go 1k, log100
-    exp_name = 'tb26' # only show kp version
-    exp_name = 'tb27' # radius=3,levels=4, to match tb18 < killed
-    # looks fine
-    # the boundary effects (in both large moa are a bit bothersome
-    # though honestly they did reduce a bit, with the extra scale added
-    exp_name = 'tb28' # restore flips for B4; train on sbatch, to see the effects of the net upgrade
-    # for this i need to kill something
-    # ok... oom on g1
-    exp_name = 'tb29' # crop 384,384 since i'm using bigger net now
-    # still oom. why?
-    exp_name = 'tb30' # I=6
-    exp_name = 'tb31' # inspect the elements
-    exp_name = 'tb32' # sb < running
-    # ok, so this version has maybe a more difficult job, since it's 384x384 and I=6, but if it wins then i'm happy
-    # < heavy boundary effect!
-    exp_name = 'tb33' # sb; reflect padding instead of zero
-    exp_name = 'tb34' # sb; b1, 1gpu (baby version of tb33)
-    exp_name = 'tb35' # cat the corr valids; quick
-    exp_name = 'tb36' # sb; b1; 1gpu; quick=False
-    # both of these are having some trouble <5k
-    # but i can relax and let them run
-    # actually, both are tb36
-    # so let's kill and try b2, to see if we approach a b4 model at all
-    exp_name = 'tb37' # sb; b2 (horz); 2gpu; quick=False
-    exp_name = 'tb38' # sb; b4; 4gpu; quick=False < nan
-    # so tb38 and tb32 are running
-    # i am interested to see if boundary effects persist
-    # esp. in tb38, which uses mirror. 
-    # and, if tb38 wins, maybe those oob indicators are helping
-    # and if either of these go under the tb16 model, it means my architecture change helped
-    exp_name = 'tb39' # sb; b4; 4gpu; quick=False; fixed bug with nan (added an else in the pca func) < died later, due to loss/params being nan
-    exp_name = 'tb40' # align_corners=True for the fcp_ interp; quick; in another model, disable ce
-    exp_name = 'tb41' # back to normal, for a baseline
-    # ok none of these are producing a clear top boundary effect
-    exp_name = 'tb42' # padding_mode=zeros
-    exp_name = 'tb43' # align_corners=True for fcp
-    exp_name = 'tb44' # padding_mode='reflect'; print about the ce, to maybe inform about the nan that killed tb38 and tb39
-    # but why didn't tb32 fail?
-    # what are the diffs?
-    # < reflect padding
-    # < corr valid concat
-    # < 
-    exp_name = 'tb45' # quick=False; padding_mode='reflect'; print about the ce, to maybe inform about the nan that killed tb38 and tb39
-    exp_name = 'tb46' # bce instead of ce
-    exp_name = 'tb47' # balanced ce instead of bce
-    # OOM
-    exp_name = 'tb48' # I = 5 instead of 6
-    exp_name = 'tb49' # I = 4
-    # why are all these oom? could it be that the fcp tensor is huge, and i'm making two of them now, so that's why?
-    # no wait, not oom. it's printing an error
-    exp_name = 'tb50' # I = 5
-    exp_name = 'tb51' # I = 4,3
-    # oooh now i know:
-    # the issue is: we are computing the cost volume stuff outside,
-    # so it's all being piled onto the zeroth gpu
-    # let me fix this
-    exp_name = 'tb52' # everything inside; 1gpu; quick
-    exp_name = 'tb53' # I = 8
-    exp_name = 'tb54' # 4gpu
-    exp_name = 'tb55' # I = 6
-    exp_name = 'tb56' # quick=False; sb
-    exp_name = 'tb57' # no ce
-    # ok i think with the balanced loss, i fixed the nan. somehow i'm running into some instability with the native functions, maybe to do with my indexing
-    # no! not fixed. everything died
-    # so it must be the corr valid concat... let's disable it and see
-    exp_name = 'tb58' # disable corr valid concat
-    exp_name = 'tb59' # detach corr valid concat
-    exp_name = 'tb60' # no corr valid
-    exp_name = 'tb61' # use_ones with detach
-    exp_name = 'tb62' # use_ones=False
-    exp_name = 'tb63' # use_ones=True (with detach)
-    # wow tb62 nan
-    # and note everything since tb57 has no ce
-    # it's really shocking for tb62 to fail
-    # tb63 nan by ~12k
-    exp_name = 'tb64' # print all three losses, and print stats on coords, so i can see which one gives nan first < first coord pred is the first nan
-    exp_name = 'tb65' # 1gpu to chase the nan < nan occured after an iter with high loss, so maybe discarding huge trajs will help
-    exp_name = 'tb66' # padding_mode='zeros' < no more nan... could it really be the padding?
-    exp_name = 'tb67' # grad_acc = 4
-    exp_name = 'tb68' # clip 5 instead of 1
-    exp_name = 'tb69' # valid = length<1k < killed by typo
-    exp_name = 'tb70' # valid = length<W*2; divide flow loss by n_predictions
-    exp_name = 'tb71' # valid = length<W*2; padding='reflect'
-    exp_name = 'tb72' # valid = length<W*2; padding='replicate'
-    exp_name = 'tb73' # valid=ones
-    exp_name = 'tb74' # 4gpu; padding='replicate'
-    # ok, everything without zero-padding arrived to nan
-    exp_name = 'tb75' # 4gpu; padding='zeros'; init from tb70; go 200k < killed by accidentally deleting the slurm file 
-    exp_name = 'tb76' # same but higher res: 384,512 < killed since tb77 is similar
-    exp_name = 'tb77' # lr 4e-4 < killed bc tb78 is similar 
-    exp_name = 'tb78' # args for flips and I; grad_acc=1 < queued as 3858631 < actually, 4e-4 never took effect bc of init
-    exp_name = 'tb79' # stride=8 instead of stride=4, no init  
-    exp_name = 'tb80' # elim layer4 and conv3; back to 3e-4; fix bug in animated coords-on-heat vis
-    exp_name = 'tb81' # temp; just tell me some stats
-    exp_name = 'tb82' # .train() at end of val step
-    # probably something needs updating, since i updated in the tester
-    exp_name = 'tb83' # train interactive, stride8, shallow=True, 100k
-    exp_name = 'tb84' # init from tb83; load step, optimizer, to maybe start from 6k
-    exp_name = 'tb85' # init from tb83; load step, optimizer, to maybe start from 6k; shallow=True < 3860500
-    exp_name = 'tb86' # fix bug in fcp vis
-    exp_name = 'tb87' # re-run with quick=False on 4 gpus
-    exp_name = 'tb88' # no flips, so i can run quickly  
-    exp_name = 'tb89' # clean up
-
-    init_dir = ''
-    # load_optimizer = True
-    # load_step = True
-    # ignore_load = None
-
-    ## choose hyps
-    B = 1
-    S = 8
-    N = 128
-    lr = 3e-4
-    grad_acc = 1
-    horz_flip = False
-    vert_flip = False
-    stride = 8
-    I = 6
-    use_scheduler = False
-
-    
-    crop_size = (384,512) # the raw data is 540,960
     assert(crop_size[0] % 128 == 0)
     assert(crop_size[1] % 128 == 0)
-
-    quick = True
-    quick = False
-    if quick:
-        # max_iters = 10000
-        # log_freq = 500
-        max_iters = 1000
-        log_freq = 100
-        save_freq = 999999
-        shuffle = False
-        do_val = False
-        val_freq = 4
-        cache_len = 11
-        cache_freq = 99999999
-        subset = 'A'
-        use_augs = True
-    else:
-        max_iters = 100000
-        log_freq = 500
-        val_freq = 50
-        save_freq = 1000
-        shuffle = True
-        do_val = True
-        cache_len = 0
-        cache_freq = 99999999
-        subset = 'all'
-        use_augs = True
     
     ## autogen a descriptive name
     if horz_flip and vert_flip:
@@ -347,6 +200,8 @@ def train():
         model_name = "%dv" % (B*2)
     else:
         model_name = "%d" % (B)
+    if grad_acc > 1:
+        model_name += "x%d" % grad_acc
     model_name += "_%d_%d" % (S, N)
     model_name += "_I%d" % (I)
     lrn = "%.1e" % lr # e.g., 5.0e-04
@@ -362,16 +217,16 @@ def train():
     model_name = model_name + '_' + model_date
     print('model_name', model_name)
     
-    ckpt_dir = 'checkpoints/%s' % model_name
-    log_dir = 'logs_train_basic'
+    ckpt_dir = '%s/%s' % (ckpt_dir, model_name)
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
-    if do_val:
+    if val_freq > 0:
         writer_v = SummaryWriter(log_dir + '/' + model_name + '/v', max_queue=10, flush_secs=60)
 
     def worker_init_fn(worker_id):
         np.random.seed(np.random.get_state()[1][0] + worker_id)
     
     train_dataset = flyingthingsdataset.FlyingThingsDataset(
+        dataset_location=dataset_location,
         dset='TRAIN', subset=subset,
         use_augs=use_augs,
         N=N, S=S,
@@ -389,9 +244,10 @@ def train():
         print('we will cache %d' % cache_len)
         sample_pool = utils.misc.SimplePool(cache_len, version='np')
     
-    if do_val:
+    if val_freq > 0:
         print('not using augs in val')
         val_dataset = flyingthingsdataset.FlyingThingsDataset(
+            dataset_location=dataset_location,
             dset='TEST', subset='all',
             use_augs=use_augs,
             N=N, S=S,
@@ -405,7 +261,7 @@ def train():
         val_iterloader = iter(val_dataloader)
     
     model = Singlepoint(stride=stride).cuda()
-    model = torch.nn.DataParallel(model)
+    model = torch.nn.DataParallel(model, device_ids=device_ids)
     parameters = list(model.parameters())
     if use_scheduler:
         optimizer, scheduler = fetch_optimizer(lr, 0.0001, 1e-8, max_iters//grad_acc, model.parameters())
@@ -433,7 +289,7 @@ def train():
     ate_all_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    if do_val:
+    if val_freq > 0:
         loss_pool_v = utils.misc.SimplePool(n_pool, version='np')
         ce_pool_v = utils.misc.SimplePool(n_pool, version='np')
         vis_pool_v = utils.misc.SimplePool(n_pool, version='np')
@@ -519,7 +375,7 @@ def train():
                 scheduler.step()
             optimizer.zero_grad()
 
-        if do_val and (global_step) % val_freq == 0:
+        if val_freq > 0 and (global_step) % val_freq == 0:
             torch.cuda.empty_cache()
             model.eval()
             sw_v = utils.improc.Summ_writer(
@@ -563,7 +419,7 @@ def train():
             model.train()
 
         if np.mod(global_step, save_freq)==0:
-            saverloader.save(ckpt_dir, optimizer, model.module, global_step, keep_latest=1)
+            saverloader.save(ckpt_dir, optimizer, model.module, global_step, keep_latest=keep_latest)
 
         current_lr = optimizer.param_groups[0]['lr']
         sw_t.summ_scalar('_/current_lr', current_lr)
@@ -574,9 +430,9 @@ def train():
             total_loss.item()))
             
     writer_t.close()
-    if do_val:
+    if val_freq > 0:
         writer_v.close()
             
 
 if __name__ == '__main__':
-    train()
+    Fire(main)
