@@ -15,16 +15,14 @@ from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from flyingthingsdataset import FlyingThingsDataset
-from fire import Fire
 import utils.test
+from fire import Fire
 
 device = 'cuda'
 random.seed(125)
 np.random.seed(125)
 
 def run_dino(dino, d, sw):
-    import copy
-
     rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
     occs = d['occs'].cuda().float() # B, S, 1, H, W
     masks = d['masks'].cuda().float() # B, S, 1, H, W
@@ -187,7 +185,7 @@ def run_raft(raft, d, sw):
 
 
 def main(
-        exp_name='00', 
+        exp_name='flt', 
         B=1,
         S=8,
         N=16,
@@ -250,7 +248,7 @@ def main(
     else:
         assert(False) # need to choose a valid modeltype
         
-    n_pool = 100000
+    n_pool = 10000
     ate_all_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
