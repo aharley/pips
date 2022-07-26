@@ -12,7 +12,12 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 ## Requirements
 
-
+```
+conda create --name pips
+conda install pytorch=1.12.0 torchvision=0.13.0 cudatoolkit=11.3 -c pytorch
+conda install pip
+pip install -r requirements.txt
+```
 
 ## Demo
 
@@ -97,6 +102,10 @@ warning: updated load_fails (on this worker): 1/13085...
 ```
 Occasional `load_fails` warnings are typically harmless. They indicate when the dataloader fails to get `N` trajectories for a given video, which simply causes a retry. If you greatly increase `N` (the number of trajectories), or reduce the crop size, you can expect this warning to occur more frequently, since these constraints make it more difficult to find viable samples. As long as your `rtime` (read time) is small, then things are basically OK. 
 
+To reproduce the result in the paper, you should train with 4 gpus, with horizontal and vertical flips, with a command like this:
+```
+python train.py --horz_flip=True --vert_flip=True --device_ids=[0,1,2,3]
+``
 
 ## Testing
 
