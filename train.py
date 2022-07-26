@@ -322,8 +322,6 @@ def main(
                 except StopIteration:
                     train_iterloader = iter(train_dataloader)
                     sample = next(train_iterloader)
-                # sample['rgbs'] = sample['rgbs'].cpu().detach().numpy()
-                # sample['masks'] = sample['masks'].cpu().detach().numpy()
                 sample_pool.update([sample])
             else:
                 sample = sample_pool.sample()
@@ -333,8 +331,6 @@ def main(
             except StopIteration:
                 train_iterloader = iter(train_dataloader)
                 sample = next(train_iterloader)
-            # sample['rgbs'] = sample['rgbs'].cpu().detach().numpy()
-            # sample['masks'] = sample['masks'].cpu().detach().numpy()
 
         read_time = time.time()-read_start_time
         iter_start_time = time.time()
