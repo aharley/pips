@@ -24,23 +24,29 @@ clean up heads test
 
 add davis test/vis
 
-
-DOING
+clean up data makers
 
 edit train.py so you fire it with args
 
-
-
-SOON
-
 edit the testers so you can fire them with args
+
+edit the testers so that they share testing utils
+
+find out minimum set of utils
 
 figure out minimum reqs for a fresh env
 
 
-LATER
+
+DOING
+
+
+SOON
 
 make a video, and talk about how object-level tracking is not satisfactory
+
+LATER
+
 
 
 
