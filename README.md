@@ -1,17 +1,15 @@
 # Particle Video Revisited: Tracking Through Occlusions Using Point Trajectories
 
-This is the official code release for our ECCV22 paper on tracking particles through occlusions, presenting our new "particle video" method, **Persistent Independent Particles (PIPs)**. 
+This is the official code release for our ECCV2022 paper on tracking particles through occlusions, presenting our new "particle video" method, **Persistent Independent Particles (PIPs)**. 
 
 **[[Paper](https://arxiv.org/abs/2204.04153)] [[Project Page](https://particle-video-revisited.github.io/)]**
 
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
-[This repo is currently being updated with additional content and instructions.]
-
-
 
 ## Requirements
 
+The lines below should set up a fresh environment with everything you need: 
 ```
 conda create --name pips
 conda install pytorch=1.12.0 torchvision=0.13.0 cudatoolkit=11.3 -c pytorch
@@ -20,7 +18,6 @@ pip install -r requirements.txt
 ```
 
 ## Demo
-
 
 To download our reference model, run this:
 
@@ -41,10 +38,6 @@ In the tensorboard you should be able to find visualizations like this:
 <img src='https://particle-video-revisited.github.io/images/puppy_wide.gif'>
 
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
-
-
-## 
-
 
 
 ## FlyingThings++ dataset
@@ -71,6 +64,12 @@ In parallel, you can run `python make_occlusions.py`. This will put 537M of occl
 This data will be loaded and joined with corresponding rgb by the `FlyingThingsDataset` class in `flyingthingsdataset.py`, when training and testing.
 
 (The suffixes "ad" and "al" are version counters.)
+
+Once loaded by the dataloader (`flyingthingsdataset.py`), the RGB will look like this:
+<img src='https://particle-video-revisited.github.io/images/flt_rgbs.gif'>
+
+The corresponding trajectories will look like this:
+<img src='https://particle-video-revisited.github.io/images/flt_trajs.gif'>
 
 
 ## Training
@@ -105,9 +104,11 @@ Occasional `load_fails` warnings are typically harmless. They indicate when the 
 To reproduce the result in the paper, you should train with 4 gpus, with horizontal and vertical flips, with a command like this:
 ```
 python train.py --horz_flip=True --vert_flip=True --device_ids=[0,1,2,3]
-``
+```
 
 ## Testing
+
+To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
 
 To evaluate the model in Flyingthings++, run `python test_on_flt.py`
 
@@ -115,7 +116,7 @@ To evaluate the model in BAJDA, run `python test_on_badja.py`
 
 To evaluate the model in CroHD, run `python test_on_crohd.py`
 
-To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
+For any of these evaluations, you can also try a baseline, with `--modeltype='raft'` or `--modeltype='dino'`. You will also want to download a [RAFT](https://github.com/princeton-vl/RAFT) model. The DINO model should download itself, since torch makes this easy.
 
 
 ### Citation

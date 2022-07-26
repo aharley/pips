@@ -78,7 +78,7 @@ def run_model(model, rgbs, N, sw):
 
     return trajs_e-pad
     
-def train():
+def main():
 
     # the idea in this file is to run the model on some demo images, and return some visualizations
     
@@ -158,4 +158,4 @@ def train():
     writer_t.close()
 
 if __name__ == '__main__':
-    train()
+    main()
