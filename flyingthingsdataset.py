@@ -8,26 +8,16 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 from PIL import Image
 import random
-
 from torch._C import dtype, set_flush_denormal
-# from detectron2.structures.masks import polygons_to_bitmask
-
-import utils.py
 import utils.basic
-import utils.geom
 import utils.improc
-
 import glob
 import json
-
 import imageio
 import cv2
 import re
-# import skimage.morphology
 import sys
-
 from torchvision.transforms import ColorJitter, GaussianBlur
-
 
 np.random.seed(125)
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -363,7 +353,6 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         
         N_ = min(trajs.shape[1], self.N)
         
-        # inds = utils.py.farthest_point_sample(trajs[0], N_, deterministic=False)
         inds = np.random.choice(trajs.shape[1], N_, replace=False)
 
         trajs_full = np.zeros((self.S, self.N, 2)).astype(np.float32)

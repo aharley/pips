@@ -4,9 +4,6 @@ import timeit
 import saverloader
 from nets.raftnet import Raftnet
 from nets.singlepoint import Singlepoint
-import utils.py
-import utils.misc
-import utils.improc
 import random
 from utils.basic import print_, print_stats
 import torch
@@ -15,6 +12,8 @@ from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from flyingthingsdataset import FlyingThingsDataset
+import utils.basic
+import utils.improc
 import utils.test
 from fire import Fire
 

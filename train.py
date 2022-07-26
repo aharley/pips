@@ -3,10 +3,8 @@ import numpy as np
 import timeit
 import saverloader
 from nets.singlepoint import Singlepoint
-import utils.py
-import utils.misc
+# import utils.misc
 import utils.improc
-import utils.grouping
 import random
 from utils.basic import print_, print_stats
 import flyingthingsdataset
@@ -153,8 +151,8 @@ def main(
         B=1, # batchsize 
         S=8, # seqlen of the data/model
         N=128, # number of particles to sample from the data
-        horz_flip=True, # this causes B*=2
-        vert_flip=True, # this causes B*=2
+        horz_flip=False, # this causes B*=2
+        vert_flip=False, # this causes B*=2
         stride=8, # spatial stride of the model 
         I=6, # inference iters of the model
         crop_size=(384,512), # the raw data is 540,960
@@ -184,7 +182,7 @@ def main(
         ignore_load=None,
         # cuda
         device='cuda:0',
-        device_ids=[0,1,2,3],
+        device_ids=[0],
 ):
     # the idea in this file is to train a PIPs model (nets/singlepoint.py) in flyingthings++
 

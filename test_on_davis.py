@@ -5,8 +5,7 @@ import timeit
 import cv2
 import saverloader
 from nets.singlepoint import Singlepoint
-import utils.py
-import utils.misc
+import utils.basic
 import utils.improc
 import random
 from utils.basic import print_, print_stats
