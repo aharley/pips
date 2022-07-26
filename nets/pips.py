@@ -3,18 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from functools import partial
-
 import utils.basic
 from utils.basic import print_stats
 import utils.samp
 import utils.misc
-
-from torchvision.models.resnet import ResNet, Bottleneck
-
-MODEL_URL = 'https://download.pytorch.org/models/resnet50-19c8e357.pth'
-
-import torch.utils.checkpoint as checkpoint
-
 from torch import nn, einsum
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
@@ -75,11 +67,14 @@ def score_map_loss(fcps, trajs_g, vis_g, valids):
     # make gt with ones at the rounded spatial inds in here
     gt_ = torch.zeros_like(fcp_) # N_,I,H8,W8
     gt_[:,:,xy_[:,1],xy_[:,0]] = 1 # N_,I,H8,W8 with a 1 in the right spot
+
+    ## softmax
     # fcp_ = fcp_.reshape(N_*I,H8*W8)
     # gt_ = gt_.reshape(N_*I,H8*W8)
     # argm = torch.argmax(gt_, dim=1)
     # ce_loss = F.cross_entropy(fcp_, argm, reduction='mean')
 
+    ## ce
     fcp_ = fcp_.reshape(N_*I*H8*W8)
     gt_ = gt_.reshape(N_*I*H8*W8)
     # ce_loss = F.binary_cross_entropy_with_logits(fcp_, gt_, reduction='mean')
@@ -627,8 +622,8 @@ class Pips(nn.Module):
                 kp_vis[kp_any==0] = fcp_vis[kp_any==0]
 
                 vis_all.append(kp_vis)
-            vis_all = torch.stack(vis_all, dim=1) # B, S, I, 3, H8, W8 (but not quite I due to padding)
-            vis_fcp = torch.stack(vis_fcp, dim=1) # B, S, I, 3, H8, W8 (but not quite I due to padding)
+            vis_all = torch.stack(vis_all, dim=1) # B, S, I, 3, H8, W8 (but not quite I, due to padding)
+            vis_fcp = torch.stack(vis_fcp, dim=1) # B, S, I, 3, H8, W8 (but not quite I, due to padding)
 
             vis_all = vis_all.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
             vis_fcp = vis_fcp.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
