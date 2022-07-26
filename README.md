@@ -41,7 +41,7 @@ The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `d
 
 ## Model code
 
-You can inspect the implementation of our model in `nets/singlepoint.py`
+You can inspect the implementation of our model in `nets/pips.py`
 
 ## FlyingThings++ dataset
 
