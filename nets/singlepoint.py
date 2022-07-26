@@ -10,7 +10,6 @@ import utils.samp
 import utils.misc
 
 from torchvision.models.resnet import ResNet, Bottleneck
-# from torchvision.models.utils import load_state_dict_from_url
 
 MODEL_URL = 'https://download.pytorch.org/models/resnet50-19c8e357.pth'
 
@@ -67,20 +66,10 @@ def score_map_loss(fcps, trajs_g, vis_g, valids):
     vis_ = vis_g.reshape(B*S*N) # BSN
     valid_ = valids.reshape(B*S*N) # BSN
     x_, y_ = xy_[:,0], xy_[:,1] # BSN
-    # print('xy_', xy_.shape)
-    # print('x_', x_.shape)
-    # print('y_', y_.shape)
-    # print('vis_', vis_.shape)
-    # print('valid_', valid_.shape)
     ind = (x_ >= 0) & (x_ <= (W8-1)) & (y_ >= 0) & (y_ <= (H8-1)) & (valid_ > 0) & (vis_ > 0) # BSN
-    # print('ind', ind.shape, torch.sum(ind))
-    # if torch.sum(ind) > 0:
     fcp_ = fcp_[ind] # N_,I,H8,W8
     xy_ = xy_[ind] # N_
     N_ = fcp_.shape[0]
-    # print('fcp_', fcp_.shape)
-    # print('xy_', xy_.shape)
-
     # N_ is the number of heatmaps with valid targets
 
     # make gt with ones at the rounded spatial inds in here
@@ -146,15 +135,11 @@ def get_sincos_embedding(x, y, z, C):
     y = y.unsqueeze(1)
     z = z.unsqueeze(1)
     
-    # print('x', x.shape)
     div_term = (torch.arange(0, C, 2).float() * (10000.0 / C)).reshape(1, int(C/2), 1, 1).to(x.device)
-    # print('div_term', div_term.shape)
     
     pe_x = torch.zeros(B, C, N, M).to(x.device)
     pe_y = torch.zeros(B, C, N, M).to(x.device)
     pe_z = torch.zeros(B, C, N, M).to(x.device)
-    # print('pe_x', pe_x.shape)
-    # print('pe_x[:,0::2]', pe_x[:,0::2].shape)
 
     pe_x[:, 0::2] = torch.sin(x * div_term)
     pe_x[:, 1::2] = torch.cos(x * div_term)
@@ -263,15 +248,6 @@ class BasicEncoder(nn.Module):
             self.relu2 = nn.ReLU(inplace=True)
             self.conv3 = nn.Conv2d(output_dim*2, output_dim, kernel_size=1)
         
-        # # output convolution
-        # if self.stride==4:
-        #     self.conv2 = nn.Conv2d(128+96, output_dim, kernel_size=1)
-        # elif self.stride==8:
-        #     self.conv2 = nn.Conv2d(128, output_dim, kernel_size=1)
-        # else:
-        #     assert(False) # only 4 and 8 supported right now
-            
-
         self.dropout = None
         if dropout > 0:
             self.dropout = nn.Dropout2d(p=dropout)
@@ -297,8 +273,6 @@ class BasicEncoder(nn.Module):
     def forward(self, x):
 
         _, _, H, W = x.shape
-        
-        # print('i', x.shape)
         
         x = self.conv1(x)
         x = self.norm1(x)
@@ -329,8 +303,6 @@ class BasicEncoder(nn.Module):
         
         if self.training and self.dropout is not None:
             x = self.dropout(x)
-            
-        # print('x', x.shape)
 
         return x
 
@@ -360,22 +332,9 @@ class DeltaBlock(nn.Module):
             
         
     def forward(self, fhid, fcorr, flow):
-        # print('fhid', fhid.shape)
-        # print('fcorr', fcorr.shape)
-        # print('flow', flow.shape)
-        # print('coord', coord.shape)
         B, S, D = flow.shape
         assert(D==3)
-
         flow_sincos = utils.misc.get_3d_embedding(flow, 64, cat_coords=True)
-        # flow_sincos = get_sincos_embedding(
-        #     flow[:,:,0].unsqueeze(1), # B, 1, S
-        #     flow[:,:,1].unsqueeze(1), # B, 1, S
-        #     flow[:,:,2].unsqueeze(1), # B, 1, S
-        #     64).squeeze(2) # B
-        # print('flow_sincos', flow_sincos.shape)
-        # print('flow_sincos', flow_sincos.shape)
-
         x = torch.cat([fhid, fcorr, flow_sincos], dim=2) # B, S, -1
         delta = self.to_delta(x)
         delta = delta.reshape(B, self.S, self.input_dim+2)
@@ -409,8 +368,6 @@ class CorrBlock:
         # print('fmaps', fmaps.shape)
         self.S, self.C, self.H, self.W = S, C, H, W
 
-        # fmaps = F.normalize(fmaps, dim=2)
-        
         self.num_levels = num_levels
         self.radius = radius
         self.fmaps_pyramid = []
@@ -422,7 +379,6 @@ class CorrBlock:
             fmaps_ = F.avg_pool2d(fmaps_, 2, stride=2)
             _, _, H, W = fmaps_.shape
             fmaps = fmaps_.reshape(B, S, C, H, W)
-            # fmaps = F.normalize(fmaps, dim=2)
             self.fmaps_pyramid.append(fmaps)
             # print('fmaps', fmaps.shape)
 
@@ -430,12 +386,9 @@ class CorrBlock:
         r = self.radius
         B, S, N, D = coords.shape
         assert(D==2)
-        # print('coords', coords.shape)
 
         x0 = coords[:,0,:,0].round().clamp(0, self.W-1).long()
         y0 = coords[:,0,:,1].round().clamp(0, self.H-1).long()
-        # print('x0', x0, x0.shape)
-        # print('y0', y0, y0.shape)
 
         use_ones = True
         
@@ -446,32 +399,18 @@ class CorrBlock:
             if use_ones:
                 ones = torch.ones_like(corrs)
             _, _, _, H, W = corrs.shape
-            # print('corrs %d' % i, corrs.shape)
-            # import ipdb; ipdb.set_trace()
-
-            # corrs_ = []
-            # for b in range(B):
-            #     corrs__ = corrs[b,:,y0[b],x0[b]] # S
-            #     corrs_.append(corrs__)
-            # corrs_ = torch.stack(corrs_, dim=0).reshape(B*S*N, 1, h2, w2)
-            # print('corrs_', corrs_.shape)
-            # input()
             
             dx = torch.linspace(-r, r, 2*r+1)
             dy = torch.linspace(-r, r, 2*r+1)
             delta = torch.stack(torch.meshgrid(dy, dx, indexing='ij'), axis=-1).to(coords.device) 
-            # print('dx', dx.shape)
-            # print('delta', delta.shape)
 
             centroid_lvl = coords.reshape(B*S*N, 1, 1, 2) / 2**i
             delta_lvl = delta.view(1, 2*r+1, 2*r+1, 2)
             coords_lvl = centroid_lvl + delta_lvl
-            # print('coords_lvl', coords_lvl.shape)
 
             corrs = bilinear_sampler(corrs.reshape(B*S*N, 1, H, W), coords_lvl)
             if use_ones:
                 ones = bilinear_sampler(ones.reshape(B*S*N, 1, H, W), coords_lvl.detach()).detach()
-            # print('sampled corrs', corrs.shape)
             corrs = corrs.view(B, S, N, -1)
             if use_ones:
                 ones = ones.view(B, S, N, -1)
@@ -479,7 +418,6 @@ class CorrBlock:
             out_pyramid.append(corrs)
 
         out = torch.cat(out_pyramid, dim=-1) # B, S, N, LRR*2
-        # print('out', out.shape)
         return out.contiguous().float()
 
     def corr(self, targets):
@@ -488,7 +426,6 @@ class CorrBlock:
         assert(S==self.S)
 
         fmap1 = targets
-        # fmap1 = F.normalize(fmap1, dim=3)
 
         self.corrs_pyramid = []
         for fmaps in self.fmaps_pyramid:
@@ -497,7 +434,6 @@ class CorrBlock:
             corrs = torch.matmul(fmap1, fmap2s)
             corrs = corrs.view(B, S, N, H, W) 
             corrs = corrs / torch.sqrt(torch.tensor(C).float())
-            # print('corrs level', corrs.shape)
             self.corrs_pyramid.append(corrs)
 
 class Singlepoint(nn.Module):
@@ -529,14 +465,10 @@ class Singlepoint(nn.Module):
     def forward(self, xys, rgbs, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False):
         total_loss = torch.tensor(0.0).cuda()
 
-        # print('xys', xys.shape)
-        # print('rgbs in', rgbs.shape)
-
         B, N, D = xys.shape
         assert(D==2)
 
         B, S, C, H, W = rgbs.shape
-        # assert(B==1)
 
         rgbs = 2 * (rgbs / 255.0) - 1.0
 
@@ -545,19 +477,9 @@ class Singlepoint(nn.Module):
 
         device = rgbs.device
 
-        # print('xys', xys.shape)
-        # print('rgbs', rgbs.shape)
-        # print('B, BN2', B, BN2)
-
         rgbs_ = rgbs.reshape(B*S, C, H, W)
         fmaps_ = self.fnet(rgbs_)
         fmaps = fmaps_.reshape(B, S, self.latent_dim, H8, W8)
-        # print('fmaps', fmaps.shape)
-        
-        # N2 = BN2//B
-        # fmaps = fmaps.unsqueeze(1).repeat(1, N2, 1, 1, 1, 1).reshape(B*N2, S, self.latent_dim, H8, W8)
-        # B = B*N2
-        # assert(B==BN2)
 
         if sw is not None and sw.save_this:
             sw.summ_feats('tff/0_fmaps', fmaps.unbind(1))
@@ -568,11 +490,8 @@ class Singlepoint(nn.Module):
             coords = xys_.reshape(B, 1, N, 2).repeat(1, S, 1, 1) # init with zero vel
         else:
             coords = coords_init.clone() / self.stride
-        # print('coords', coords.shape)
 
         hdim = self.hidden_dim
-        # print('hdim', hdim)
-        # cdim = self.context_dim
 
         fcorr_fn = CorrBlock(fmaps, num_levels=self.corr_levels, radius=self.corr_radius)
 
@@ -582,8 +501,6 @@ class Singlepoint(nn.Module):
         else:
             ffeat = feat_init
         ffeats = ffeat.unsqueeze(1).repeat(1, S, 1, 1) # B, S, N, C
-
-        # print('ffeats', ffeats.shape)
         
         coord_predictions = []
         coord_predictions2 = []
@@ -621,55 +538,28 @@ class Singlepoint(nn.Module):
 
             fcorr_fn.corr(ffeats)
 
-            # fcp = torch.zeros_like(fmaps[:,:,0]) # B,S,N,H8,W8
             fcp = torch.zeros((B,S,N,H8,W8), dtype=torch.float32, device=device) # B,S,N,H8,W8
             for cr in range(self.corr_levels):
                 fcp_ = fcorr_fn.corrs_pyramid[cr] # B,S,N,?,? (depending on scale)
                 _,_,_,H_,W_ = fcp_.shape
-                # print('fcp_', fcp_.shape)
                 fcp_ = fcp_.reshape(B*S,N,H_,W_)
                 fcp_ = F.interpolate(fcp_, (H8, W8), mode='bilinear', align_corners=True)
-                # fcp_ = F.interpolate(fcp_, (H8, W8), mode='bilinear')
                 fcp = fcp + fcp_.reshape(B,S,N,H8,W8)
             fcps.append(fcp)
 
             fcorrs = fcorr_fn.sample(coords) # B, S, N, LRR
-            # print('fcorrs', fcorrs.shape)
-
-            # with r=2,l=5 (new), LRR=125
-            # with r=3,l=4 (new), LRR=196
-            # with r=4,l=3 (default), LRR=243
             LRR = fcorrs.shape[3]
-            # print('LRR', LRR)
 
             # for mixer, i want everything in the format B*N, S, C
             fcorrs_ = fcorrs.permute(0, 2, 1, 3).reshape(B*N, S, LRR)
-            # print('fcorrs', fcorrs.shape)
             flows_ = (coords - coords[:,0:1]).permute(0,2,1,3).reshape(B*N, S, 2)
-            # print('flows', flows.shape)
             # coords_ = coords.permute(0,3,1,2) # B, 2, S, N
             times_ = torch.linspace(0, S, S, device=device).reshape(1, S, 1).repeat(B*N, 1, 1) # B*N,S,1
             flows_ = torch.cat([flows_, times_], dim=2) # B*N,S,2
-            # print('flows_', flows_.shape)
 
             ffeats_ = ffeats.permute(0,2,1,3).reshape(B*N,S,self.latent_dim)
-            # print('hid', hid.shape)
-            # print('ctx', ctx.shape)
-
-            # print('hids', hids.shape)
-            # print('feats', feats.shape)
             
-            # hids, delta_all = self.update_block(hids, feats, corrs, flows, coords_)
-            # delta_all = self.update_block(hids, feats, corrs, flows, coords_)
-            # delta_all = self.update_block(feats, corrs, flows, coords_)
-            # print('feats before', feats.shape)
-            # print('feats aft', feats.shape)
-            # print('new hids', hids.shape)
-            # print('delta_feats', delta_feats.shape)
-            # print('delta_coords', delta_coords.shape)
-            # print('deltas', deltas.shape)
             delta_all_ = self.delta_block(ffeats_, fcorrs_, flows_) # B*N, S, C+2
-            # print('delta_all_', delta_all_.shape)
             delta_coords_ = delta_all_[:,:,:2]
             delta_feats_ = delta_all_[:,:,2:]
 
@@ -677,11 +567,8 @@ class Singlepoint(nn.Module):
             delta_feats_ = delta_feats_.reshape(B*N*S, self.latent_dim)
             ffeats_ = self.ffeat_updater(self.norm(delta_feats_)) + ffeats_
             ffeats = ffeats_.reshape(B, N, S, self.latent_dim).permute(0,2,1,3) # B,S,N,C
-            # print('new ffeats', ffeats.shape)
 
             coords = coords + delta_coords_.reshape(B, N, S, 2).permute(0,2,1,3)
-            # print('new coords', coords.shape)
-            # input()
 
             coords[:,0] = coords_bak[:,0] # lock coord0 for target
 
@@ -691,7 +578,6 @@ class Singlepoint(nn.Module):
             if sw is not None and sw.save_this:
                 kp_vis = []
                 for s in range(S):
-                    # kp = utils.improc.draw_circles_at_xy(coords[0:1,s,0:1], H8, W8, sigma=1).squeeze(2)
 
                     if trajs_g is not None:
                         e_ = coords[0:1,s,0:1] # 1,1,2, in H8,W8 coords
@@ -706,14 +592,8 @@ class Singlepoint(nn.Module):
                     kp_vis.append(kp)
                 kp_vis = torch.stack(kp_vis, dim=1)
                 kps.append(kp_vis)
-                
-                # print('heat', heat.shape)
-                # # heat_any = (torch.max(heat, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
-                # # heat[heat_any==0] = vis[heat_any==0]
-                # heat_vis.append(sw.summ_rgb('tff/3_heats_s%d' % s, heat, only_return=True)
 
         vis_e = self.vis_predictor(ffeats.reshape(B*S*N, self.latent_dim)).reshape(B,S,N)
-        # print('vis', vis.shape)
 
         # pause at the end
         coord_predictions2.append(coords * self.stride)
@@ -722,7 +602,6 @@ class Singlepoint(nn.Module):
         fcps = torch.stack(fcps, dim=2) # B, S, I, N, H8, W8
         if sw is not None and sw.save_this:
             kps = torch.stack(kps, dim=2) # B, S, I, 3, H8, W8 
-            # print('kps', kps.shape)
 
             vis_all = []
             vis_fcp = []
@@ -735,9 +614,7 @@ class Singlepoint(nn.Module):
                                  fcp,
                                  fcp[:,-1].unsqueeze(1),
                                  fcp[:,-1].unsqueeze(1)], dim=1) # pause on end
-                # utils.basic.print_stats('fcp', fcp)
                 fcp_vis = sw.summ_oneds('tff/2_fcp_s%d' % s, fcp.unbind(1), norm=False, only_return=True)
-                # print('fcp_vis', fcp_vis.shape)
                 vis_fcp.append(fcp_vis)
 
                 kp = kps[0:1,s] # 1, I, 3, H8, W8
@@ -756,19 +633,11 @@ class Singlepoint(nn.Module):
             vis_all = vis_all.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
             vis_fcp = vis_fcp.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
             sw.summ_rgbs('tff/2_kp_s', vis_all.unbind(1))
-            # sw.summ_rgbs('tff/2_fcp_s', vis_fcp.unbind(1))
 
         if trajs_g is not None:
-            # preds is a list of B,S,N,2 elements
-            # for it in range(len(coord_predictions)):
-            #     print_stats('coord_predictions[%d]' % it, coord_predictions[it])
             seq_loss = sequence_loss(coord_predictions, trajs_g, vis_g, valids, 0.8)
-            # print('seq_loss', seq_loss)
             vis_loss, _ = balanced_ce_loss(vis_e, vis_g)
-            # print('vis_loss', vis_loss)
             ce_loss = score_map_loss(fcps, trajs_g/float(self.stride), vis_g, valids)
-            # ce_loss = vis_loss*0.0
-            # print('ce_loss', ce_loss)
             losses = (seq_loss, vis_loss, ce_loss)
         else:
             losses = None
