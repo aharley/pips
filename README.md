@@ -42,10 +42,6 @@ In the tensorboard you should be able to find visualizations like this:
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
 
-## 
-
-
-
 ## FlyingThings++ dataset
 
 To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html). The data should look like:
@@ -70,6 +66,12 @@ In parallel, you can run `python make_occlusions.py`. This will put 537M of occl
 This data will be loaded and joined with corresponding rgb by the `FlyingThingsDataset` class in `flyingthingsdataset.py`, when training and testing.
 
 (The suffixes "ad" and "al" are version counters.)
+
+Once loaded by the dataloader (`flyingthingsdataset.py`), the RGB will look like this:
+<img src='https://particle-video-revisited.github.io/images/flt_rgbs.gif'>
+
+The corresponding trajectories will look like this:
+<img src='https://particle-video-revisited.github.io/images/flt_trajs.gif'>
 
 
 ## Training
