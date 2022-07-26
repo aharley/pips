@@ -6,8 +6,6 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
-[This repo is currently being updated with additional content and instructions.]
-
 
 ## Requirements
 
