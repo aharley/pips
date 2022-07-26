@@ -39,6 +39,9 @@ In the tensorboard you should be able to find visualizations like this:
 
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
+## Model code
+
+You can inspect the implementation of our model in `nets/singlepoint.py`
 
 ## FlyingThings++ dataset
 
