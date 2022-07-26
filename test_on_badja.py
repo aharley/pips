@@ -1,8 +1,6 @@
 import time
-import argparse
 import numpy as np
 import timeit
-import cv2
 import saverloader
 from nets.raftnet import Raftnet
 from nets.singlepoint import Singlepoint
@@ -17,6 +15,8 @@ from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from badjadataset import BadjaDataset
+import utils.test
+from fire import Fire
 
 device = 'cuda'
 patch_size = 8
@@ -536,131 +536,55 @@ def run_dino(dino, d, sw):
     
     return metrics
 
-def train():
-
+def main(
+        exp_name='badja',
+        B=1,
+        S=8,
+        modeltype='pips',
+        init_dir='reference_model',
+        log_dir='logs_test_on_badja',
+        stride=4,
+        max_iters=7,
+        log_freq=99999, # vis is very slow here
+        shuffle=False,
+):
     # the idea in this file is to evaluate on keypoint propagation in BADJA
     
-    exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
-
-    init_dir = 'reference_model'
-    
-    stride = 4
-    B = 1
-    S = 8
-    
-    max_iters = 7
-    log_freq = 1
-    log_freq = 99999
-    shuffle = False
-    mini_len = 101
+    assert(modeltype=='pips' or modeltype=='raft' or modeltype=='dino')
     
     ## autogen a name
-    model_name = "%02d_%d" % (B, S)
+    model_name = "%d_%d_%s" % (B, S, modeltype)
     model_name += "_%s" % exp_name
-    
     import datetime
     model_date = datetime.datetime.now().strftime('%H:%M:%S')
     model_name = model_name + '_' + model_date
     print('model_name', model_name)
     
-    ckpt_dir = 'checkpoints/%s' % model_name
-    log_dir = 'logs_test_on_badja'
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
 
-    train_dataset = badjadataset.BadjaDataset()
-    train_dataloader = DataLoader(
-        train_dataset,
+    test_dataset = BadjaDataset()
+    test_dataloader = DataLoader(
+        test_dataset,
         batch_size=B,
         shuffle=shuffle,
         num_workers=1)
-    train_iterloader = iter(train_dataloader)
+    test_iterloader = iter(test_dataloader)
     
     global_step = 0
 
-    # # raft = nets.raftnet.RaftNet(ckpt_name='../RAFT/models/raft-sintel.pth').cuda()
-    # raft = Raftnet(ckpt_name='../RAFT/models/raft-things.pth').cuda()
-    raft = Raftnet(ckpt_name='../RAFT/models/raft-sintel.pth').cuda()
-    raft.eval()
-
-    singlepoint = Singlepoint(stride=stride).cuda()
-    if init_dir:
-       _ = saverloader.load(init_dir, singlepoint)
-    singlepoint.eval()
-
-    # stride = 8
-    # crop_size = (368,496)
-    # H, W = crop_size
-    # H8, W8 = H//8, W//8
-    # dof = Dofperionet(H8, W8, S=S, stride=stride).cuda()
-    # dof_init_dir = 'checkpoints/08_8_512_1e-4_p1_do28_16:16:10'
-    # if dof_init_dir:
-    #     _ = saverloader.load(dof_init_dir, dof)
-    # dof.eval()
-    
-
-    n_pool = 1000
-    loss_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    ce_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    epe_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    epe_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    epe_inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    epe_inv2inv_pool_t = utils.misc.SimplePool(n_pool, version='np')
-    flow_pool_t = utils.misc.SimplePool(n_pool, version='np')
-
-    # timecycle
-    if False:
-        # create timecycle model
-        import sys
-        sys.path.append("/home/zhaoyuaf/tracking_sol/TimeCycle")
-        import models.videos.model_test as video3d
-        timecycle = video3d.CycleTime(class_num=49, trans_param_num=3, pretrained=False, temporal_out=4)
-        timecycle.to(device)
-
-        # load from checkpoint
-        checkpoint = torch.load("/home/zhaoyuaf/tracking_sol/TimeCycle/checkpoint_14.pth.tar")
-        pretrained_dict = checkpoint['state_dict']
-        model_dict = timecycle.state_dict()
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        model_dict.update(pretrained_dict)
-        timecycle.load_state_dict(model_dict)
-        del checkpoint
-
-    # dino
-    if True:
+    if modeltype=='pips':
+        model = Singlepoint(S=S, stride=stride).cuda()
+        _ = saverloader.load(init_dir, model)
+        model.eval()
+    elif modeltype=='raft':
+        model = Raftnet(ckpt_name='../RAFT/models/raft-things.pth').cuda()
+        model.eval()
+    elif modeltype=='dino':
         patch_size = 8
-        dino = torch.hub.load('facebookresearch/dino:main', 'dino_vits%d' % patch_size)
-        for p in dino.parameters():
-            p.requires_grad = False
-        dino.eval()
-        dino.to(device)
-
-    # resnet
-    if False:
-        from torchvision import models
-        resnet = models.resnet50(pretrained=True)
-        resnet = nn.Sequential(*list(resnet.children())[:-4])
-        resnet.eval()
-        resnet.to(device)
-
-    if False:
-        import sys
-        sys.path.append("/home/yunchuz/andy/MAST")
-        from models.mast import MAST
-
-        parser = argparse.ArgumentParser(description='MAST')
-        parser.add_argument('--ref', type=int, default=0)
-        args = parser.parse_args()
-
-        args.training = False
-        mast = MAST(args)
-
-        checkpoint = torch.load("/home/yunchuz/andy/MAST/checkpoint.pt")
-        mast.load_state_dict(checkpoint['state_dict'])
-        mast.eval()
-        mast.to(device)
+        model = torch.hub.load('facebookresearch/dino:main', 'dino_vits%d' % patch_size).cuda()
+        model.eval()
     else:
-        mast = None
+        assert(False) # need to choose a valid modeltype
         
     results = []
     while global_step < max_iters:
@@ -668,7 +592,6 @@ def train():
         read_start_time = time.time()
         
         global_step += 1
-        total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
         sw_t = utils.improc.Summ_writer(
             writer=writer_t,
@@ -679,18 +602,23 @@ def train():
             just_gif=True)
 
         try:
-            sample = next(train_iterloader)
+            sample = next(test_iterloader)
         except StopIteration:
-            train_iterloader = iter(train_dataloader)
-            sample = next(train_iterloader)
+            test_iterloader = iter(test_dataloader)
+            sample = next(test_iterloader)
 
         read_time = time.time()-read_start_time
         iter_start_time = time.time()
             
         with torch.no_grad():
-            metrics = run_singlepoint(singlepoint, sample, sw_t)
-            # metrics = run_raft(raft, sample, sw_t)
-            # metrics = run_dino(dino, sample, sw_t)
+            if modeltype=='pips':
+                metrics = run_singlepoint(model, sample, sw_t)
+            elif modeltype=='raft':
+                metrics = run_raft(model, sample, sw_t)
+            elif modeltype=='dino':
+                metrics = run_dino(model, sample, sw_t)
+            else:
+                assert(False) # need to choose a valid modeltype
         
         results.append(metrics['pck'])
 
@@ -708,8 +636,4 @@ def train():
     writer_t.close()
     
 if __name__ == '__main__':
-    train()
-    
-
-
-
+    Fire(main)
