@@ -15,7 +15,6 @@ import math
 import torch.nn.functional as F
 import utils.improc
 from utils.basic import readPFM
-from tqdm import tqdm
 import random
 import glob
 from filter_trajs import filter_trajs
