@@ -9,9 +9,9 @@ This is the official code release for our ECCV22 paper on tracking particles thr
 [This repo is currently being updated with additional content and instructions.]
 
 
-
 ## Requirements
 
+The lines below should set up a fresh environment with everything you need: 
 ```
 conda create --name pips
 conda install pytorch=1.12.0 torchvision=0.13.0 cudatoolkit=11.3 -c pytorch
@@ -20,7 +20,6 @@ pip install -r requirements.txt
 ```
 
 ## Demo
-
 
 To download our reference model, run this:
 
@@ -105,9 +104,11 @@ Occasional `load_fails` warnings are typically harmless. They indicate when the 
 To reproduce the result in the paper, you should train with 4 gpus, with horizontal and vertical flips, with a command like this:
 ```
 python train.py --horz_flip=True --vert_flip=True --device_ids=[0,1,2,3]
-``
+```
 
 ## Testing
+
+To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
 
 To evaluate the model in Flyingthings++, run `python test_on_flt.py`
 
@@ -115,7 +116,7 @@ To evaluate the model in BAJDA, run `python test_on_badja.py`
 
 To evaluate the model in CroHD, run `python test_on_crohd.py`
 
-To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
+For any of these evaluations, you can also try a baseline, with `--modeltype='raft'` or `--modeltype='dino'`. You will also want to download a [RAFT](https://github.com/princeton-vl/RAFT) model. The DINO model should download itself, since torch makes this easy.
 
 
 ### Citation
