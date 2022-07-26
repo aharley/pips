@@ -17,9 +17,9 @@ from torch.utils.data import Dataset, DataLoader
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from flyingthingsdataset import FlyingThingsDataset
+from fire import Fire
 
 device = 'cuda'
-patch_size = 8
 random.seed(125)
 np.random.seed(125)
 
@@ -58,7 +58,8 @@ def prep_frame_for_dino(img, scale_size=[192]):
 def get_feats_from_dino(model, frame):
     # batch version of the other func
     B = frame.shape[0]
-    h, w = int(frame.shape[2] / model.patch_embed.patch_size), int(frame.shape[3] / model.patch_embed.patch_size)
+    patch_size = model.patch_embed.patch_size
+    h, w = int(frame.shape[2] / patch_size), int(frame.shape[3] / patch_size)
     out = model.get_intermediate_layers(frame.cuda(), n=1)[0] # B, 1+h*w, dim
     dim = out.shape[-1]
     out = out[:, 1:, :]  # discard the [CLS] token
@@ -142,16 +143,12 @@ def run_dino(dino, d, sw):
     B, S, C, H, W = rgbs.shape
     B, S1, N, D = trajs_g.shape
 
-
-    # trajs_g = trajs.clone()
-    # vis_g = vis.clone()
-    # valids = valid.clone()
+    assert(torch.sum(valids)==B*S*N)
     
-    # all_visible = (vis_g.sum(1) == S).reshape(-1)
-
+    # compute per-sequence visibility labels
+    vis_g = (torch.sum(vis_g, dim=1, keepdim=True) >= 4).float().repeat(1, S, 1)
+    
     _, S, C, H, W = rgbs.shape
-
-    patch_size = 8
 
     assert(B==1)
     xy0 = trajs_g[:,0] # B, N, 2
@@ -183,6 +180,7 @@ def run_dino(dino, d, sw):
     # featmaps = F.normalize(featmaps, dim=2, p=2)
 
     xy0 = trajs_g[:, 0, :] # B, N, 2
+    patch_size = dino.patch_embed.patch_size
     first_seg = torch.zeros((1, N, H//patch_size, W//patch_size))
     for n in range(N):
         first_seg[0, n, (xy0[0, n, 1]/patch_size).long(), (xy0[0, n, 0]/patch_size).long()] = 1
@@ -263,6 +261,9 @@ def run_singlepoint(model, d, sw):
 
     assert(torch.sum(valids)==B*S*N)
 
+    # compute per-sequence visibility labels
+    vis_g = (torch.sum(vis_g, dim=1, keepdim=True) >= 4).float().repeat(1, S, 1)
+
     _, S, C, H, W = rgbs.shape
 
     preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, iters=6, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
@@ -293,12 +294,11 @@ def run_singlepoint(model, d, sw):
         rgb_vis = []
         black_vis = []
         for trajs_e_ in preds_anim:
-            trajs_e_ = trajs_e_ + pad
             rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e_[0:1], gt_rgb, only_return=True, cmap='coolwarm'))
             black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e_[0:1], gt_black, only_return=True, cmap='coolwarm'))
         sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
         sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
-
+        
     return metrics
 
 
@@ -315,6 +315,9 @@ def run_raft(raft, d, sw):
     B, S, N, D = trajs_g.shape
 
     assert(torch.sum(valids)==B*S*N)
+    
+    # compute per-sequence visibility labels
+    vis_g = (torch.sum(vis_g, dim=1, keepdim=True) >= 4).float().repeat(1, S, 1)
 
     _, S, C, H, W = rgbs.shape
 
@@ -362,86 +365,77 @@ def run_raft(raft, d, sw):
     return metrics
 
 
-def train():
+def main(
+        exp_name='00', 
+        B=1,
+        S=8,
+        N=16,
+        modeltype='pips',
+        init_dir='reference_model',
+        stride=4,
+        log_dir='logs_test_on_flt',
+        max_iters=0, # auto-select based on dataset
+        log_freq=100,
+        shuffle=False,
+        subset='all',
+        crop_size=(384,512), # the raw data is 540,960,
+        use_augs=False,
+):
+    # the idea in this file is to evaluate on flyingthings++
 
-    # the idea in this file is to evaluate on flyingthings
+    assert(modeltype=='pips' or modeltype=='raft' or modeltype=='dino')
     
-    exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
-    
-    init_dir = 'reference_model'
-    
-    stride = 4
-
-    ## choose hyps
-    B = 1
-    S = 8
-    N = 16
-    grad_acc = 1
-
-    S_stride = 3
-
-    max_iters = 1000
-    log_freq = 100
-    save_freq = 100000
-    shuffle = True
-    subset = 'all'
-    crop_size = (384,512) # the raw data is 540,960
-
-    use_augs = False
-
     ## autogen a name
-    model_name = "%02d_%d_%d" % (B, S, N)
+    model_name = "%d_%d_%d_%s" % (B, S, N, modeltype)
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
-
     import datetime
     model_date = datetime.datetime.now().strftime('%H:%M:%S')
     model_name = model_name + '_' + model_date
     print('model_name', model_name)
 
-    ckpt_dir = 'checkpoints/%s' % model_name
-    log_dir = 'logs_test_on_flt'
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
 
     def worker_init_fn(worker_id):
         np.random.seed(np.random.get_state()[1][0] + worker_id)
-    train_dataset = FlyingThingsDataset(
+    test_dataset = FlyingThingsDataset(
         dset='TEST', subset=subset,
         use_augs=use_augs,
         N=N, S=S,
         crop_size=crop_size)
-    train_dataloader = DataLoader(
-        train_dataset,
+    test_dataloader = DataLoader(
+        test_dataset,
         batch_size=B,
         shuffle=shuffle,
         num_workers=12,
         worker_init_fn=worker_init_fn,
         drop_last=True)
-    train_iterloader = iter(train_dataloader)
+    test_iterloader = iter(test_dataloader)
 
     global_step = 0
-    
-    raft = Raftnet(ckpt_name='../RAFT/models/raft-things.pth').cuda()
-    raft.eval()
 
-    singlepoint = Singlepoint(S=S, stride=stride).cuda()
-    if init_dir:
-       _ = saverloader.load(init_dir, singlepoint)
-    singlepoint.eval()
-
-    patch_size = 8
-    dino = torch.hub.load('facebookresearch/dino:main', 'dino_vits%d' % patch_size).cuda()
-    for p in dino.parameters():
-        p.requires_grad = False
-    dino.eval()
-    
-    n_pool = 10000
+    if modeltype=='pips':
+        model = Singlepoint(S=S, stride=stride).cuda()
+        _ = saverloader.load(init_dir, model)
+        model.eval()
+    elif modeltype=='raft':
+        model = Raftnet(ckpt_name='../RAFT/models/raft-things.pth').cuda()
+        model.eval()
+    elif modeltype=='dino':
+        patch_size = 8
+        model = torch.hub.load('facebookresearch/dino:main', 'dino_vits%d' % patch_size).cuda()
+        model.eval()
+    else:
+        assert(False) # need to choose a valid modeltype
+        
+    n_pool = 100000
     ate_all_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_vis_pool_t = utils.misc.SimplePool(n_pool, version='np')
     ate_occ_pool_t = utils.misc.SimplePool(n_pool, version='np')
 
-    max_iters = len(train_dataloader)
+    if max_iters==0:
+        max_iters = len(test_dataloader)
     print('setting max_iters', max_iters)
     
     while global_step < max_iters:
@@ -459,18 +453,23 @@ def train():
             just_gif=True)
 
         try:
-            sample = next(train_iterloader)
+            sample = next(test_iterloader)
         except StopIteration:
-            train_iterloader = iter(train_dataloader)
-            sample = next(train_iterloader)
+            test_iterloader = iter(test_dataloader)
+            sample = next(test_iterloader)
 
         read_time = time.time()-read_start_time
         iter_start_time = time.time()
             
         with torch.no_grad():
-            # metrics = run_dino(dino, sample, sw_t)
-            # metrics = run_raft(raft, sample, sw_t)
-            metrics = run_singlepoint(singlepoint, sample, sw_t)
+            if modeltype=='pips':
+                metrics = run_singlepoint(model, sample, sw_t)
+            elif modeltype=='raft':
+                metrics = run_raft(model, sample, sw_t)
+            elif modeltype=='dino':
+                metrics = run_dino(model, sample, sw_t)
+            else:
+                assert(False) # need to choose a valid modeltype
 
         if metrics['ate_all'] > 0:
             ate_all_pool_t.update([metrics['ate_all']])
@@ -490,30 +489,4 @@ def train():
     writer_t.close()
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    # parser.add_argument('--name', default='raft', help="name your experiment")
-    # parser.add_argument('--stage', help="determines which dataset to use for training") 
-    # parser.add_argument('--restore_ckpt', help="restore checkpoint")
-    parser.add_argument('--small', action='store_true', help='use small model')
-    # parser.add_argument('--num_steps', type=int, default=100)
-    # parser.add_argument('--num_steps', type=int, default=10000)
-    # parser.add_argument('--num_steps', type=int, default=300000)
-    # parser.add_argument('--num_steps', type=int, default=300000)
-    # parser.add_argument('--batch_size', type=int, default=6)
-    # parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
-    # parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
-    parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
-    # parser.add_argument('--mixed_precision', action='store_false', help='use mixed precision')
-    parser.add_argument('--iters', type=int, default=8)
-    parser.add_argument('--wdecay', type=float, default=0.0001)
-    parser.add_argument('--epsilon', type=float, default=1e-8)
-    parser.add_argument('--clip', type=float, default=1.0)
-    parser.add_argument('--dropout', type=float, default=0.0)
-    parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
-    parser.add_argument('--add_noise', action='store_true')
-    args = parser.parse_args()
-    
-    train()
-
-
+    Fire(main)
