@@ -39,7 +39,14 @@ In the tensorboard you should be able to find visualizations like this:
 
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
-https://particle-video-revisited.github.io/videos/pup_vstack.mp4
+To track points across arbitrarily-long videos, run this:
+```
+python chain_demo.py
+```
+In the tensorboard you should be able to find visualizations like this:
+<img src='https://particle-video-revisited.github.io/images/pup_long_compressed.gif'>
+
+This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using visibility-aware chaining, and if the model makes a mistake, that mistake is likely to propagate into future frames.
 
 
 ## Model implementation
