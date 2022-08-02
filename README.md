@@ -37,8 +37,6 @@ For each 8-frame subsequence, the model will return `trajs_e`. This is estimated
 In the tensorboard you should be able to find visualizations like this: 
 <img src='https://particle-video-revisited.github.io/images/puppy_wide.gif'>
 
-The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
-
 To track points across arbitrarily-long videos, run this:
 ```
 python chain_demo.py
@@ -46,7 +44,9 @@ python chain_demo.py
 In the tensorboard you should be able to find visualizations like this:
 <img src='https://particle-video-revisited.github.io/images/pup_long_compressed.gif'>
 
-This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using visibility-aware chaining, and if the model makes a mistake in the position or the visibility estimates (e.g., drifting off target), that mistake is likely to propagate into future frames.
+This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using our visibility-aware chaining method, so mistakes tend to propagate into the future. 
+
+The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
 
 ## Model implementation
