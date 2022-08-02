@@ -94,17 +94,19 @@ def run_model(model, rgbs, N, sw):
 
         for n in range(N):
             # print('visualizing kp %d' % n)
-            sw.summ_traj2ds_on_rgbs('video_%d/kp_%d_trajs_e_on_rgbs' % (sw.global_step, n), trajs_e[0:1,:,n:n+1], gray_rgbs[0:1,:S], cmap='spring', linewidth=linewidth)
+            kp_vis = sw.summ_traj2ds_on_rgbs('video_%d/kp_%d_trajs_e_on_rgbs' % (sw.global_step, n), trajs_e[0:1,:,n:n+1], gray_rgbs[0:1,:S], cmap='spring', linewidth=linewidth)
+
+            # write to disk, in case that's more convenient
+            kp_list = list(kp_vis.unbind(1))
+            kp_list = [kp[0].permute(1,2,0).cpu().numpy() for kp in kp_list]
+            kp_list = [Image.fromarray(kp) for kp in kp_list]
+            out_fn = './chain_out_%d.gif' % sw.global_step
+            kp_list[0].save(out_fn, save_all=True, append_images=kp_list[1:])
+            print('saved %s' % out_fn)
+            
         sw.summ_traj2ds_on_rgb('outputs/trajs_e_on_rgb', trajs_e[0:1], prep_rgbs[0:1,0], cmap='spring')
         sw.summ_traj2ds_on_rgb('outputs/trajs_e_on_rgb2', trajs_e[0:1], torch.mean(prep_rgbs[0:1], dim=1), cmap='spring')
         
-        # # write to disk, in case that's more convenient
-        # wide_list = list(wide_cat.unbind(1))
-        # wide_list = [wide[0].permute(1,2,0).cpu().numpy() for wide in wide_list]
-        # wide_list = [Image.fromarray(wide) for wide in wide_list]
-        # out_fn = './out_%d.gif' % sw.global_step
-        # wide_list[0].save(out_fn, save_all=True, append_images=wide_list[1:])
-        # print('saved %s' % out_fn)
 
     return trajs_e-pad
     
