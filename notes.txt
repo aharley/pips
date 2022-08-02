@@ -36,7 +36,11 @@ find out minimum set of utils
 
 figure out minimum reqs for a fresh env
 
+add more detailed instructions about how to get the data for the test scripts
 
+add chain_demo.py
+
+add explanation and preview of chain demo
 
 DOING
 

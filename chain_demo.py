@@ -28,10 +28,6 @@ def run_model(model, rgbs, N, sw):
     H, W = H_, W_
     rgbs = rgbs_.reshape(B, S, C, H, W)
 
-    # pick N points to track; we'll use a uniform grid
-    # x = torch.randint(0, W, size=(1, N), device=torch.device('cuda'))
-    # y = torch.randint(0, H, size=(1, N), device=torch.device('cuda'))
-
     # try to pick a point on the dog, so we get an interesting trajectory
     # x = torch.randint(-10, 10, size=(1, N), device=torch.device('cuda')) + 468
     # y = torch.randint(-10, 10, size=(1, N), device=torch.device('cuda')) + 118
@@ -117,13 +113,6 @@ def main():
     # the idea in this file is to chain together pips from a long sequence, and return some visualizations
     
     exp_name = '00' # (exp_name is used for logging notes that correspond to different runs)
-    exp_name = '01' # run as-is
-    exp_name = '02' # pick a trackable point 
-    exp_name = '03' # pick mid / nose
-    exp_name = '04' # chain
-    exp_name = '05' # hardcode the coord
-    exp_name = '06' # S = 50
-    exp_name = '07' # fps=12
 
     init_dir = 'reference_model'
 
