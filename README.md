@@ -34,14 +34,14 @@ This will run the model on a sequence included in `demo_images/`.
 
 For each 8-frame subsequence, the model will return `trajs_e`. This is estimated trajectory data for the particles, shaped `B,S,N,2`, where `S` is the sequence length and `N` is the number of particles, and `2` is the `x` and `y` coordinates. The script will also produce tensorboard logs with visualizations, which go into `logs_demo/`, as well as a few gifs in `./*.gif`. 
 
-In the tensorboard you should be able to find visualizations like this: 
+In the tensorboard for `logs_demo/` you should be able to find visualizations like this: 
 <img src='https://particle-video-revisited.github.io/images/puppy_wide.gif'>
 
 To track points across arbitrarily-long videos, run this:
 ```
 python chain_demo.py
 ```
-In the tensorboard you should be able to find visualizations like this:
+In the tensorboard for `logs_chain_demo/` you should be able to find visualizations like this:
 <img src='https://particle-video-revisited.github.io/images/pup_long_compressed.gif'>
 
 This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using our visibility-aware chaining method, so mistakes tend to propagate into the future. 
