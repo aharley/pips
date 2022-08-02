@@ -46,7 +46,7 @@ python chain_demo.py
 In the tensorboard you should be able to find visualizations like this:
 <img src='https://particle-video-revisited.github.io/images/pup_long_compressed.gif'>
 
-This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using visibility-aware chaining, and if the model makes a mistake, that mistake is likely to propagate into future frames.
+This type of tracking is much more challenging, so you can expect to see more failures here. In particular, here we are using visibility-aware chaining, and if the model makes a mistake in the position or the visibility estimates (e.g., drifting off target), that mistake is likely to propagate into future frames.
 
 
 ## Model implementation
