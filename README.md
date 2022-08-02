@@ -109,20 +109,33 @@ To reproduce the result in the paper, you should train with 4 gpus, with horizon
 python train.py --horz_flip=True --vert_flip=True --device_ids=[0,1,2,3]
 ```
 
+***
 ## Testing
 
-To visualize the model's outputs in DAVIS, run `python test_on_davis.py`
+We provide evaluation scripts for all of the datasets reported in the paper. By default, these scripts will evaluate a PIPs model, with a checkpoint folder specified by the `--init_dir` argument.
 
-To evaluate the model in Flyingthings++, run `python test_on_flt.py`
+You can also try a baseline, with `--modeltype='raft'` or `--modeltype='dino'`. To do this, you will also want to download a [RAFT](https://github.com/princeton-vl/RAFT) model. The DINO model should download itself, since torch makes this easy.
 
-To evaluate the model in BAJDA, run `python test_on_badja.py`
+### CroHD
 
-To evaluate the model in CroHD, run `python test_on_crohd.py`
+The CroHD head tracking data comes from the "Get all data" link on the [Head Tracking 21 MOT Challenge](https://motchallenge.net/data/Head_Tracking_21/) page. Downloading and unzipping that should give you the folders HT21 and HT21Labels, which our dataloader relies on. After downloading the data (and potentially editing the `dataset_location` in `crohddataset.py`), you can evaluate the model in CroHD with: `python test_on_crohd.py`
 
-For any of these evaluations, you can also try a baseline, with `--modeltype='raft'` or `--modeltype='dino'`. You will also want to download a [RAFT](https://github.com/princeton-vl/RAFT) model. The DINO model should download itself, since torch makes this easy.
+### FlyingThings++
+
+To evaluate the model in Flyingthings++, first set up the data as described in the earlier section of this readme, then: `python test_on_flt.py`
+
+### DAVIS
+
+The DAVIS dataset comes from the "TrainVal - Images and Annotations - Full-Resolution" link, on the [DAVIS Challenge](https://davischallenge.org/davis2017/code.html) page. After downloading the data (and potentially editing the `data_path` in `test_on_davis.py`), you can visualize the model's outputs in DAVIS with: `
+python test_on_davis.py`
+
+### BADJA
+
+To evaluate the model in BAJDA, first follow the instructions at the [BADJA repo](https://github.com/benjiebob/BADJA). This will involve downloading DAVIS trainval full-resolution data. After downloading the data (and potentially editing `BADJA_PATH` in `badjadataset.py`), you can evaluate the model in BADJA with: `python test_on_badja.py`
 
 
-### Citation
+
+## Citation
 
 If you use this code for your research, please cite:
 
