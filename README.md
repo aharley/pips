@@ -39,6 +39,9 @@ In the tensorboard you should be able to find visualizations like this:
 
 The original video is `https://www.youtube.com/watch?v=LaqYt0EZIkQ`. The file `demo_images/extract_frames.sh` shows the ffmpeg command we used to export frames from the mp4.
 
+https://particle-video-revisited.github.io/videos/pup_vstack.mp4
+
+
 ## Model implementation
 
 To inspect our PIPs model implementation, the main file to look at is `nets/pips.py`
