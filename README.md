@@ -151,7 +151,7 @@ To evaluate the model in BAJDA, first follow the instructions at the [BADJA repo
 If you use this code for your research, please cite:
 
 **Particle Video Revisited: Tracking Through Occlusions Using Point Trajectories**.
-[Adam W. Harley](https://cs.cmu.edu/~aharley),
+[Adam W. Harley](https://adamharley.com/),
 [Zhaoyuan Fang](https://zfang399.github.io/),
 [Katerina Fragkiadaki](http://cs.cmu.edu/~katef/). In ECCV 2022.
 
