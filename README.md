@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ## Demo
 
-To download our reference model, download the weights from [Hugging Face. ![](https://img.shields.io/badge/🤗%20Hugging%20Face-Model-blue)](https://huggingface.co/NimaBoscarino/pips)
+To download our reference model, download the weights from [Hugging Face. ![](https://img.shields.io/badge/🤗%20Hugging%20Face-Model-blue)](https://huggingface.co/aharley/pips)
 
 Alternatively, you can run this:
 
