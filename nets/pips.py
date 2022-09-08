@@ -121,34 +121,6 @@ def exists(val):
 def default(val, d):
     return val if exists(val) else d
 
-def get_sincos_embedding(x, y, z, C):
-    B, N, M = x.shape
-    B, N, M = y.shape
-    B, N, M = z.shape
-
-    x = x.unsqueeze(1)
-    y = y.unsqueeze(1)
-    z = z.unsqueeze(1)
-    
-    div_term = (torch.arange(0, C, 2).float() * (10000.0 / C)).reshape(1, int(C/2), 1, 1).to(x.device)
-    
-    pe_x = torch.zeros(B, C, N, M).to(x.device)
-    pe_y = torch.zeros(B, C, N, M).to(x.device)
-    pe_z = torch.zeros(B, C, N, M).to(x.device)
-
-    pe_x[:, 0::2] = torch.sin(x * div_term)
-    pe_x[:, 1::2] = torch.cos(x * div_term)
-    
-    pe_y[:, 0::2] = torch.sin(y * div_term)
-    pe_y[:, 1::2] = torch.cos(y * div_term)
-
-    pe_z[:, 0::2] = torch.sin(z * div_term)
-    pe_z[:, 1::2] = torch.cos(z * div_term)
-
-    pe = torch.cat([pe_x, pe_y, pe_z], dim=1)
-    return pe
-
-
 class ResidualBlock(nn.Module):
     def __init__(self, in_planes, planes, norm_fn='group', stride=1):
         super(ResidualBlock, self).__init__()
@@ -438,7 +410,6 @@ class Pips(nn.Module):
         self.S = S
         self.stride = stride
 
-        self.latent_dim = latent_dim = 256
         self.hidden_dim = hdim = 256
         self.latent_dim = latent_dim = 128
         self.corr_levels = 4
