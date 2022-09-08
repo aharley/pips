@@ -138,8 +138,8 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
             rgb_vis = []
             black_vis = []
             for trajs_e in preds_anim:
-                rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_rgb, only_return=True, cmap='spring'))
-                black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1], gt_black, only_return=True, cmap='spring'))
+                rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1]+pad, gt_rgb, only_return=True, cmap='spring'))
+                black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1]+pad, gt_black, only_return=True, cmap='spring'))
             sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
             sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
 
