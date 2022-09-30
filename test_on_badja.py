@@ -16,6 +16,7 @@ import utils.basic
 import utils.improc
 import utils.test
 from fire import Fire
+import cv2
 
 device = 'cuda'
 patch_size = 8
