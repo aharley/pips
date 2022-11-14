@@ -110,6 +110,17 @@ def meshgrid2d(B, Y, X, stack=False, norm=False, device='cuda'):
         return grid
     else:
         return grid_y, grid_x
+
+def gridcloud2d(B, Y, X, norm=False, device='cuda'):
+    # we want to sample for each location in the grid
+    grid_y, grid_x = meshgrid2d(B, Y, X, norm=norm, device=device)
+    x = torch.reshape(grid_x, [B, -1])
+    y = torch.reshape(grid_y, [B, -1])
+    # these are B x N
+    xy = torch.stack([x, y], dim=2)
+    # this is B x N x 2
+    return xy
+
 import re
 def readPFM(file):
     file = open(file, 'rb')

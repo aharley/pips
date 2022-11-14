@@ -5,6 +5,7 @@ from sklearn.decomposition import PCA
 from matplotlib import cm
 import matplotlib.pyplot as plt
 import cv2
+import torch.nn.functional as F
 EPS = 1e-6
 
 def preprocess_color_tf(x):
@@ -864,3 +865,8 @@ class Summ_writer(object):
                 
         return rgbs
     
+def erode2d(im, times=1, device='cuda'):
+    weights2d = torch.ones(1, 1, 3, 3, device=device)
+    for time in range(times):
+        im = 1.0 - F.conv2d(1.0 - im, weights2d, padding=1).clamp(0, 1)
+    return im
