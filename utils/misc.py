@@ -8,11 +8,11 @@ def get_3d_embedding(xyz, C, cat_coords=True):
     x = xyz[:,:,0:1]
     y = xyz[:,:,1:2]
     z = xyz[:,:,2:3]
-    div_term = (torch.arange(0, C, 2, device='cuda', dtype=torch.float32) * (1000.0 / C)).reshape(1, 1, int(C/2))
+    div_term = (torch.arange(0, C, 2, device=xyz.device, dtype=torch.float32) * (1000.0 / C)).reshape(1, 1, int(C/2))
     
-    pe_x = torch.zeros(B, N, C, device='cuda', dtype=torch.float32)
-    pe_y = torch.zeros(B, N, C, device='cuda', dtype=torch.float32)
-    pe_z = torch.zeros(B, N, C, device='cuda', dtype=torch.float32)
+    pe_x = torch.zeros(B, N, C, device=xyz.device, dtype=torch.float32)
+    pe_y = torch.zeros(B, N, C, device=xyz.device, dtype=torch.float32)
+    pe_z = torch.zeros(B, N, C, device=xyz.device, dtype=torch.float32)
     
     pe_x[:, :, 0::2] = torch.sin(x * div_term)
     pe_x[:, :, 1::2] = torch.cos(x * div_term)
