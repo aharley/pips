@@ -30,7 +30,7 @@ def bilinear_sample2d(im, x, y, return_inbounds=False):
     dim2 = W
     dim1 = W * H
 
-    base = torch.arange(0, B, dtype=torch.int64).cuda()*dim1
+    base = torch.arange(0, B, dtype=torch.int64, device=x.device)*dim1
     base = torch.reshape(base, [B, 1]).repeat([1, N])
 
     base_y0 = base + y0_clip * dim2
