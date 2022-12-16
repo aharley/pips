@@ -139,7 +139,7 @@ def run_pips(pips, d, sw):
 
     assert(B==1)
     accs = []
-    for s1 in range(S): # target frame
+    for s1 in range(1,S): # target frame
         for n in range(N):
             vis = visibles[0,s1,n]
             if vis > 0:
@@ -218,22 +218,20 @@ def run_raft(raft, d, sw):
 
     assert(B==1)
     accs = []
-    for s0 in range(1): # source frame
-        for s1 in range(S): # target frame
-            if not s0==s1:
-                for n in range(N):
-                    vis = visibles[0,s1,n]
-                    if vis > 0:
-                        coord_e = trajs_e[0,s1,n] # 2
-                        coord_g = trajs_g[0,s1,n] # 2
-                        dist = torch.sqrt(torch.sum((coord_e-coord_g)**2, dim=0))
-                        # print_('dist', dist)
-                        area = torch.sum(segs[0,s1])
-                        # print_('0.2*sqrt(area)', 0.2*torch.sqrt(area))
-                        thr = 0.2 * torch.sqrt(area)
-                        correct = (dist < thr).float()
-                        # print_('correct', correct)
-                        accs.append(correct)
+    for s1 in range(1,S): # target frame
+        for n in range(N):
+            vis = visibles[0,s1,n]
+            if vis > 0:
+                coord_e = trajs_e[0,s1,n] # 2
+                coord_g = trajs_g[0,s1,n] # 2
+                dist = torch.sqrt(torch.sum((coord_e-coord_g)**2, dim=0))
+                # print_('dist', dist)
+                area = torch.sum(segs[0,s1])
+                # print_('0.2*sqrt(area)', 0.2*torch.sqrt(area))
+                thr = 0.2 * torch.sqrt(area)
+                correct = (dist < thr).float()
+                # print_('correct', correct)
+                accs.append(correct)
     pck = torch.mean(torch.stack(accs)) * 100.0
     metrics['pck'] = pck.item()
     
@@ -246,32 +244,33 @@ def run_raft(raft, d, sw):
         for n in range(N):
             if visibles[0,0,n] > 0:
                 sw.summ_traj2ds_on_rgbs('outputs/kp%d_trajs_e_on_rgbs' % n, trajs_e[0:1,:,n:n+1], gray_rgbs[0:1,:S], cmap='spring', linewidth=2)
-        
-        kp_vis = []
-        for s in range(S):
-            kp = utils.improc.draw_circles_at_xy(trajs_g[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
-            kp = kp * visibles[0:1,0].reshape(1, N, 1, 1)
-            kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
 
-            kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
-            # rgb = (torch.mean(rgbs[:,s] * 0.5, dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
-            rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
-            # print('rgb', rgb.shape)
-            kp[kp_any==0] = rgb[kp_any==0]
-            kp_vis.append(kp)
-        sw.summ_rgbs('inputs/kp_vis', kp_vis)
-        # sw.summ_traj2ds_on_rgbs('inputs/trajs_g_on_rgbs', trajs_g[0:1], prep_rgbs[0:1], cmap='winter', valids=visibles[0:1])
-        # sw.summ_traj2ds_on_rgb('inputs/trajs_g_on_rgb', trajs_g[0:1], prep_rgbs[0:1,0], cmap='winter', valids=visibles[0:1])
+        if False: 
+            kp_vis = []
+            for s in range(S):
+                kp = utils.improc.draw_circles_at_xy(trajs_g[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
+                kp = kp * visibles[0:1,0].reshape(1, N, 1, 1)
+                kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
 
-        kp_vis = []
-        for s in range(S):
-            kp = utils.improc.draw_circles_at_xy(trajs_e[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
-            kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
-            kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
-            rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
-            kp[kp_any==0] = rgb[kp_any==0]
-            kp_vis.append(kp)
-        sw.summ_rgbs('outputs/kp_vis', kp_vis)
+                kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
+                # rgb = (torch.mean(rgbs[:,s] * 0.5, dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
+                rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
+                # print('rgb', rgb.shape)
+                kp[kp_any==0] = rgb[kp_any==0]
+                kp_vis.append(kp)
+            sw.summ_rgbs('inputs/kp_vis', kp_vis)
+            # sw.summ_traj2ds_on_rgbs('inputs/trajs_g_on_rgbs', trajs_g[0:1], prep_rgbs[0:1], cmap='winter', valids=visibles[0:1])
+            # sw.summ_traj2ds_on_rgb('inputs/trajs_g_on_rgb', trajs_g[0:1], prep_rgbs[0:1,0], cmap='winter', valids=visibles[0:1])
+
+            kp_vis = []
+            for s in range(S):
+                kp = utils.improc.draw_circles_at_xy(trajs_e[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
+                kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
+                kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
+                rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
+                kp[kp_any==0] = rgb[kp_any==0]
+                kp_vis.append(kp)
+            sw.summ_rgbs('outputs/kp_vis', kp_vis)
         
         sw.summ_traj2ds_on_rgb('outputs/trajs_e_on_rgb', trajs_e[0:1], prep_rgbs[0:1,0], cmap='spring')
         sw.summ_traj2ds_on_rgb('outputs/trajs_e_on_rgb2', trajs_e[0:1], torch.mean(prep_rgbs[0:1], dim=1), cmap='spring')
@@ -509,28 +508,31 @@ def run_dino(dino, d, sw):
                 sw.summ_traj2ds_on_rgbs('outputs/kp%d_trajs_e_on_rgbs' % n, trajs_e[0:1,:,n:n+1], gray_rgbs[0:1,:S], cmap='spring', linewidth=2)
         sw.summ_rgbs('inputs/rgbs', prep_rgbs.unbind(1))
         sw.summ_oneds('inputs/segs', segs.unbind(1))
-        label_colors = utils.improc.get_n_colors(N) 
-        kp_vis = []
-        for s in range(S):
-            kp = utils.improc.draw_circles_at_xy(trajs_g[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
-            kp = kp * visibles[0:1,0].reshape(1, N, 1, 1)
-            kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
-            kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
-            rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
-            # print('rgb', rgb.shape)
-            kp[kp_any==0] = rgb[kp_any==0]
-            kp_vis.append(kp)
-        sw.summ_rgbs('inputs/kp_vis', kp_vis)
+        label_colors = utils.improc.get_n_colors(N)
 
-        kp_vis = []
-        for s in range(S):
-            kp = utils.improc.draw_circles_at_xy(trajs_e[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
-            kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
-            kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
-            rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
-            kp[kp_any==0] = rgb[kp_any==0]
-            kp_vis.append(kp)
-        sw.summ_rgbs('outputs/kp_vis', kp_vis)
+        if False:
+            kp_vis = []
+            for s in range(S):
+                kp = utils.improc.draw_circles_at_xy(trajs_g[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
+                kp = kp * visibles[0:1,0].reshape(1, N, 1, 1)
+                kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
+                kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
+                rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
+                # print('rgb', rgb.shape)
+                kp[kp_any==0] = rgb[kp_any==0]
+                kp_vis.append(kp)
+            sw.summ_rgbs('inputs/kp_vis', kp_vis)
+
+            kp_vis = []
+            for s in range(S):
+                kp = utils.improc.draw_circles_at_xy(trajs_e[0:1,s], H_, W_, sigma=4).squeeze(2) # 1, N, H_, W_
+                kp = sw.summ_soft_seg_thr('', kp, label_colors=label_colors, only_return=True).cuda()
+                kp_any = (torch.max(kp, dim=1, keepdims=True)[0]).repeat(1, 3, 1, 1)
+                rgb = (torch.mean(rgbs[:,s], dim=1, keepdim=True).repeat(1, 3, 1, 1)).byte()
+                kp[kp_any==0] = rgb[kp_any==0]
+                kp_vis.append(kp)
+            sw.summ_rgbs('outputs/kp_vis', kp_vis)
+            
         sw.summ_traj2ds_on_rgbs('outputs/trajs_e_on_rgbs', trajs_e[0:1], prep_rgbs[0:1,:S], cmap='spring')
         sw.summ_traj2ds_on_rgb('outputs/trajs_e_on_rgb', trajs_e[0:1], prep_rgbs[0:1,0], cmap='spring')
     
@@ -541,15 +543,15 @@ def main(
         B=1,
         S=8,
         modeltype='pips',
-        init_dir='reference_model',
+        init_dir='./reference_model',
         log_dir='logs_test_on_badja',
         stride=4,
         max_iters=7,
-        log_freq=99999, # vis is very slow here
+        log_freq=99, # vis is very slow here
         shuffle=False,
 ):
     # the idea in this file is to evaluate on keypoint propagation in BADJA
-    
+
     assert(modeltype=='pips' or modeltype=='raft' or modeltype=='dino')
     
     ## autogen a name
@@ -609,7 +611,7 @@ def main(
 
         read_time = time.time()-read_start_time
         iter_start_time = time.time()
-            
+
         with torch.no_grad():
             if modeltype=='pips':
                 metrics = run_pips(model, sample, sw_t)
@@ -619,7 +621,7 @@ def main(
                 metrics = run_dino(model, sample, sw_t)
             else:
                 assert(False) # need to choose a valid modeltype
-        
+
         results.append(metrics['pck'])
 
         iter_time = time.time()-iter_start_time
