@@ -3,7 +3,6 @@ import numpy as np
 import timeit
 import saverloader
 from nets.pips import Pips
-# import utils.misc
 import utils.improc
 import random
 from utils.basic import print_, print_stats
@@ -15,8 +14,6 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from fire import Fire
 
-device = 'cuda'
-patch_size = 8
 random.seed(125)
 np.random.seed(125)
 
@@ -32,17 +29,16 @@ def fetch_optimizer(lr, wdecay, epsilon, num_steps, params):
 
     return optimizer, scheduler
 
-
-def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
+def run_model(model, d, device, I=6, horz_flip=False, vert_flip=False, sw=None, is_train=True):
     total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
     # flow = d['flow'].cuda().permute(0, 3, 1, 2)
-    rgbs = d['rgbs'].cuda().float() # B, S, C, H, W
-    occs = d['occs'].cuda().float() # B, S, 1, H, W
-    masks = d['masks'].cuda().float() # B, S, 1, H, W
-    trajs_g = d['trajs'].cuda().float() # B, S, N, 2
-    vis_g = d['visibles'].cuda().float() # B, S, N
-    valids = d['valids'].cuda().float() # B, S, N
+    rgbs = d['rgbs'].to(device).float() # B, S, C, H, W
+    occs = d['occs'].to(device).float() # B, S, 1, H, W
+    masks = d['masks'].to(device).float() # B, S, 1, H, W
+    trajs_g = d['trajs'].to(device).float() # B, S, N, 2
+    vis_g = d['visibles'].to(device).float() # B, S, N
+    valids = d['valids'].to(device).float() # B, S, N
 
     B, S, C, H, W = rgbs.shape
     assert(C==3)
@@ -83,11 +79,11 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         B = B * 2
 
 
-    preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw)
+    preds, preds_anim, vis_e, stats = model(trajs_g[:,0], rgbs, coords_init=None, iters=I, trajs_g=trajs_g, vis_g=vis_g, valids=valids, sw=sw, is_train=is_train)
     seq_loss, vis_loss, ce_loss = stats
     
     total_loss += seq_loss.mean()
-    total_loss += vis_loss.mean()
+    total_loss += vis_loss.mean()*10.0
     total_loss += ce_loss.mean()
 
     ate = torch.norm(preds[-1] - trajs_g, dim=-1) # B, S, N
@@ -117,73 +113,78 @@ def run_model(model, d, I=6, horz_flip=False, vert_flip=False, sw=None):
         occs_ = occs[0].reshape(S, -1)
         counts_ = torch.max(occs_, dim=1)[0]
         # print('counts_', counts_)
-        sw.summ_rgbs('inputs_0/rgbs', utils.improc.preprocess_color(rgbs[0:1]).unbind(1))
-        sw.summ_oneds('inputs_0/occs', occs.unbind(1), frame_ids=counts_)
-        sw.summ_oneds('inputs_0/masks', masks.unbind(1), frame_ids=counts_)
-        sw.summ_traj2ds_on_rgbs2('inputs_0/trajs_g_on_rgbs', trajs_g[0:1], vis_g[0:1], utils.improc.preprocess_color(rgbs[0:1]), valids=valids[0:1], cmap='winter')
-        sw.summ_traj2ds_on_rgb('inputs_0/trajs_g_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter')
+        # sw.summ_rgbs('0_inputs/rgbs', utils.improc.preprocess_color(rgbs[0:1]).unbind(1))
+        # sw.summ_oneds('0_inputs/occs', occs.unbind(1), frame_ids=counts_)
+        # sw.summ_oneds('0_inputs/masks', masks.unbind(1), frame_ids=counts_)
+        # sw.summ_traj2ds_on_rgbs('0_inputs/trajs_g_on_rgbs2', trajs_g[0:1], vis_g[0:1], utils.improc.preprocess_color(rgbs[0:1]), valids=valids[0:1], cmap='winter')
+        sw.summ_traj2ds_on_rgbs2('0_inputs/trajs_on_rgbs2', trajs_g[0:1], vis_g[0:1], utils.improc.preprocess_color(rgbs[0:1]))
+        
+        sw.summ_traj2ds_on_rgb('0_inputs/trajs_g_on_rgb', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), cmap='winter')
 
         for b in range(B):
-            sw.summ_traj2ds_on_rgb('batch_inputs_0/trajs_g_on_rgb_%d' % b, trajs_g[b:b+1], torch.mean(utils.improc.preprocess_color(rgbs[b:b+1]), dim=1), cmap='winter')
+            sw.summ_traj2ds_on_rgb('0_batch_inputs/trajs_g_on_rgb_%d' % b, trajs_g[b:b+1], torch.mean(utils.improc.preprocess_color(rgbs[b:b+1]), dim=1), cmap='winter')
 
-        sw.summ_traj2ds_on_rgbs2('outputs/trajs_e_on_rgbs', trajs_e[0:1], torch.sigmoid(vis_e[0:1]), utils.improc.preprocess_color(rgbs[0:1]), cmap='spring')
-        # sw.summ_traj2ds_on_rgbs('outputs/trajs_on_black', trajs_e[0:1], torch.ones_like(rgbs[0:1])*-0.5, cmap='spring')
+        # sw.summ_traj2ds_on_rgbs2('2_outputs/trajs_e_on_rgbs', trajs_e[0:1], torch.sigmoid(vis_e[0:1]), utils.improc.preprocess_color(rgbs[0:1]), cmap='spring')
+        # sw.summ_traj2ds_on_rgbs('2_outputs/trajs_on_black', trajs_e[0:1], torch.ones_like(rgbs[0:1])*-0.5, cmap='spring')
 
         gt_rgb = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('', trajs_g[0:1], torch.mean(utils.improc.preprocess_color(rgbs[0:1]), dim=1), valids=valids[0:1], cmap='winter', frame_id=metrics['ate_all'], only_return=True))
-        gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, valids=valids[0:1], cmap='winter', frame_id=metrics['ate_all'], only_return=True))
-        sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring')
-        sw.summ_traj2ds_on_rgb('outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring')
+        # gt_black = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('', trajs_g[0:1], torch.ones_like(rgbs[0:1,0])*-0.5, valids=valids[0:1], cmap='winter', frame_id=metrics['ate_all'], only_return=True))
+        sw.summ_traj2ds_on_rgb('2_outputs/single_trajs_on_gt_rgb', trajs_e[0:1], gt_rgb[0:1], cmap='spring')
+        # sw.summ_traj2ds_on_rgb('2_outputs/single_trajs_on_gt_black', trajs_e[0:1], gt_black[0:1], cmap='spring')
 
-        if False: # this works but it's a bit expensive
+        if True: # this works but it's a bit expensive
             rgb_vis = []
-            black_vis = []
+            # black_vis = []
             for trajs_e in preds_anim:
                 rgb_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1]+pad, gt_rgb, only_return=True, cmap='spring'))
-                black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1]+pad, gt_black, only_return=True, cmap='spring'))
-            sw.summ_rgbs('outputs/animated_trajs_on_black', black_vis)
-            sw.summ_rgbs('outputs/animated_trajs_on_rgb', rgb_vis)
+                # black_vis.append(sw.summ_traj2ds_on_rgb('', trajs_e[0:1]+pad, gt_black, only_return=True, cmap='spring'))
+            sw.summ_rgbs('2_outputs/animated_trajs_on_rgb', rgb_vis)
+            # sw.summ_rgbs('2_outputs/animated_trajs_on_black', black_vis)
 
     return total_loss, metrics
     
 def main(
         exp_name='debug',
         # training
-        B=1, # batchsize 
+        B=4, # batchsize 
         S=8, # seqlen of the data/model
-        N=128, # number of particles to sample from the data
-        horz_flip=False, # this causes B*=2
-        vert_flip=False, # this causes B*=2
+        N=768, # number of particles to sample from the data
+        horz_flip=True, # this causes B*=2
+        vert_flip=True, # this causes B*=2
         stride=8, # spatial stride of the model 
-        I=6, # inference iters of the model
+        I=2, # inference iters of the model
         crop_size=(384,512), # the raw data is 540,960
+        # crop_size=(256,384), # the raw data is 540,960
         use_augs=True, # resizing/jittering/color/blur augs
         # dataset
-        dataset_location='../flyingthings',
+        dataset_location='/data2/flyingthings',
+        badja_location='/data2/badja2',
         subset='all', # dataset subset
         shuffle=True, # dataset shuffling
-        cache_len=0, # how many samples to cache into ram (usually for debug)
-        cache_freq=99999999, # how often to refresh the cache
         # optimization
-        lr=3e-4,
+        lr=5e-4,
         grad_acc=1,
-        max_iters=100000,
-        use_scheduler=False,
+        max_iters=200000,
+        # max_iters=100,
+        use_scheduler=True,
         # summaries
-        log_dir='logs_train',
-        log_freq=500,
-        val_freq=50,
+        log_dir='/data/my_pips/logs_train',
+        log_freq=4000,
+        # log_freq=10,
+        val_freq=2000,
         # saving/loading
-        ckpt_dir='checkpoints',
+        ckpt_dir='/data/my_pips/checkpoints',
         save_freq=1000,
-        keep_latest=3,
+        keep_latest=1,
         init_dir='',
         load_optimizer=False,
         load_step=False,
         ignore_load=None,
         # cuda
-        device='cuda:0',
         device_ids=[0],
 ):
+    device = 'cuda:%d' % device_ids[0]
+    
     # the idea in this file is to train a PIPs model (nets/pips.py) in flyingthings++
 
     assert(crop_size[0] % 128 == 0)
@@ -205,8 +206,6 @@ def main(
     lrn = "%.1e" % lr # e.g., 5.0e-04
     lrn = lrn[0] + lrn[3:5] + lrn[-1] # e.g., 5e-4
     model_name += "_%s" % lrn
-    if cache_len:
-        model_name += "_cache%d" % cache_len
     if use_augs:
         model_name += "_A"
     model_name += "_%s" % exp_name
@@ -233,14 +232,10 @@ def main(
         train_dataset,
         batch_size=B,
         shuffle=shuffle,
-        num_workers=12,
+        num_workers=16*len(device_ids),
         worker_init_fn=worker_init_fn,
         drop_last=True)
     train_iterloader = iter(train_dataloader)
-    
-    if cache_len:
-        print('we will cache %d' % cache_len)
-        sample_pool = utils.misc.SimplePool(cache_len, version='np')
     
     if val_freq > 0:
         print('not using augs in val')
@@ -257,8 +252,8 @@ def main(
             num_workers=4,
             drop_last=False)
         val_iterloader = iter(val_dataloader)
-    
-    model = Pips(stride=stride).cuda()
+        
+    model = Pips(stride=stride).to(device)
     model = torch.nn.DataParallel(model, device_ids=device_ids)
     parameters = list(model.parameters())
     if use_scheduler:
@@ -297,45 +292,42 @@ def main(
         ate_occ_pool_v = utils.misc.SimplePool(n_pool, version='np')
     
     while global_step < max_iters:
-        
-        read_start_time = time.time()
-        
+
         global_step += 1
-        total_loss = torch.tensor(0.0, requires_grad=True).to(device)
 
-        sw_t = utils.improc.Summ_writer(
-            writer=writer_t,
-            global_step=global_step,
-            log_freq=log_freq,
-            fps=5,
-            scalar_freq=int(log_freq/2),
-            just_gif=True)
+        iter_start_time = time.time()
+        iter_read_time = 0.0
+        
+        for internal_step in range(grad_acc):
+            # read sample
+            read_start_time = time.time()
 
-        if cache_len:
-            if (global_step) % cache_freq == 0:
-                sample_pool.empty()
-            
-            if len(sample_pool) < cache_len:
-                print('caching a new sample')
+            if internal_step==grad_acc-1:
+                sw_t = utils.improc.Summ_writer(
+                    writer=writer_t,
+                    global_step=global_step,
+                    log_freq=log_freq,
+                    fps=5,
+                    scalar_freq=int(log_freq/2),
+                    just_gif=True)
+            else:
+                sw_t = None
+                
+            gotit = (False,False)
+            while not all(gotit):
                 try:
-                    sample = next(train_iterloader)
+                    sample, gotit = next(train_iterloader)
                 except StopIteration:
                     train_iterloader = iter(train_dataloader)
-                    sample = next(train_iterloader)
-                sample_pool.update([sample])
-            else:
-                sample = sample_pool.sample()
-        else:
-            try:
-                sample = next(train_iterloader)
-            except StopIteration:
-                train_iterloader = iter(train_dataloader)
-                sample = next(train_iterloader)
-
-        read_time = time.time()-read_start_time
-        iter_start_time = time.time()
+                    sample, gotit = next(train_iterloader)
+                
+            read_time = time.time()-read_start_time
+            iter_read_time += read_time
             
-        total_loss, metrics = run_model(model, sample, I, horz_flip, vert_flip, sw_t)
+            total_loss, metrics = run_model(model, sample, device, I, horz_flip, vert_flip, sw_t, is_train=True)
+            total_loss.backward()
+
+        iter_time = time.time()-iter_start_time
 
         sw_t.summ_scalar('total_loss', total_loss)
         loss_pool_t.update([total_loss.detach().cpu().numpy()])
@@ -359,15 +351,12 @@ def main(
         sw_t.summ_scalar('pooled/ce', ce_pool_t.mean())
         sw_t.summ_scalar('pooled/vis', vis_pool_t.mean())
         sw_t.summ_scalar('pooled/seq', seq_pool_t.mean())
-
-        total_loss.backward()
         
-        if (global_step) % grad_acc == 0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
-            optimizer.step()
-            if use_scheduler:
-                scheduler.step()
-            optimizer.zero_grad()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+        optimizer.step()
+        if use_scheduler:
+            scheduler.step()
+        optimizer.zero_grad()
 
         if val_freq > 0 and (global_step) % val_freq == 0:
             torch.cuda.empty_cache()
@@ -379,14 +368,17 @@ def main(
                 fps=5,
                 scalar_freq=int(log_freq/2),
                 just_gif=True)
-            try:
-                sample = next(val_iterloader)
-            except StopIteration:
-                val_iterloader = iter(val_dataloader)
-                sample = next(val_iterloader)
+
+            gotit = (False,False)
+            while not all(gotit):
+                try:
+                    sample, gotit = next(val_iterloader)
+                except StopIteration:
+                    train_iterloader = iter(val_dataloader)
+                    sample, gotit = next(val_iterloader)
 
             with torch.no_grad():
-                total_loss, metrics = run_model(model, sample, I, horz_flip, vert_flip, sw_v)
+                total_loss, metrics = run_model(model, sample, device, I, horz_flip, vert_flip, sw_v, is_train=False)
 
             sw_v.summ_scalar('total_loss', total_loss)
             loss_pool_v.update([total_loss.detach().cpu().numpy()])
