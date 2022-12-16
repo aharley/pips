@@ -21,7 +21,6 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 from enum import Enum
 
-BADJA_PATH = '../badja_data'
 IGNORE_ANIMALS = [
     # "bear.json",
     # "camel.json",
@@ -130,8 +129,8 @@ class SMALJointInfo():
 
 
 class BADJAData():
-    def __init__(self, complete=False):
-        annotations_path = os.path.join(BADJA_PATH, "joint_annotations")
+    def __init__(self, data_root, complete=False):
+        annotations_path = os.path.join(data_root, "joint_annotations")
         print('annotations_path', annotations_path)
 
         self.animal_dict = {}
@@ -172,14 +171,14 @@ class BADJAData():
                     last_frame_int = int(last_frame.split('.')[0])
 
                     for fr in range(first_frame_int, last_frame_int+1):
-                        ref_file_name = os.path.join(BADJA_PATH, 'DAVIS/JPEGImages/Full-Resolution/%s/%05d.jpg' % (animal, fr))
-                        ref_seg_name = os.path.join(BADJA_PATH, 'DAVIS/Annotations/Full-Resolution/%s/%05d.png' % (animal, fr))
+                        ref_file_name = os.path.join(data_root, 'DAVIS/JPEGImages/Full-Resolution/%s/%05d.jpg' % (animal, fr))
+                        ref_seg_name = os.path.join(data_root, 'DAVIS/Annotations/Full-Resolution/%s/%05d.png' % (animal, fr))
                         # print('ref_file_name', ref_file_name)
 
                         foundit = False
                         for ind, image_annotation in enumerate(animal_joint_data):
-                            file_name = os.path.join(BADJA_PATH, image_annotation['image_path'])
-                            seg_name = os.path.join(BADJA_PATH, image_annotation['segmentation_path'])
+                            file_name = os.path.join(data_root, image_annotation['image_path'])
+                            seg_name = os.path.join(data_root, image_annotation['segmentation_path'])
 
                             # print('file_name', file_name)
 
@@ -189,8 +188,8 @@ class BADJAData():
 
                         if foundit:
                             image_annotation = animal_joint_data[label_ind]
-                            file_name = os.path.join(BADJA_PATH, image_annotation['image_path'])
-                            seg_name = os.path.join(BADJA_PATH, image_annotation['segmentation_path'])
+                            file_name = os.path.join(data_root, image_annotation['image_path'])
+                            seg_name = os.path.join(data_root, image_annotation['segmentation_path'])
                             joint = np.array(image_annotation['joints'])
                             vis = np.array(image_annotation['visibility'])
                         else:
@@ -278,10 +277,11 @@ class BADJAData():
 
 
 class BadjaDataset(torch.utils.data.Dataset):
-    def __init__(self):
-        
-        self.badja_data = BADJAData()
-        print('found %d unique videos in %s' % (self.badja_data.animal_count, BADJA_PATH))
+    def __init__(self, data_root='../badja'):
+
+        self.data_root = data_root
+        self.badja_data = BADJAData(data_root)
+        print('found %d unique videos in %s' % (self.badja_data.animal_count, self.data_root))
         
     def __getitem__(self, index):
         
