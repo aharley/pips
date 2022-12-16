@@ -192,11 +192,12 @@ def main(
         init_dir='reference_model',
         stride=4,
         log_dir='logs_test_on_flt',
+        dataset_location='/data/flyingthings',
         max_iters=0, # auto-select based on dataset
         log_freq=100,
         shuffle=False,
         subset='all',
-        crop_size=(384,512), # the raw data is 540,960,
+        crop_size=(384,512), # the raw data is 540,960
         use_augs=False,
 ):
     # the idea in this file is to evaluate on flyingthings++
@@ -218,6 +219,7 @@ def main(
     def worker_init_fn(worker_id):
         np.random.seed(np.random.get_state()[1][0] + worker_id)
     test_dataset = FlyingThingsDataset(
+        dataset_location=dataset_location,
         dset='TEST', subset=subset,
         use_augs=use_augs,
         N=N, S=S,
@@ -226,7 +228,7 @@ def main(
         test_dataset,
         batch_size=B,
         shuffle=shuffle,
-        num_workers=12,
+        num_workers=24,
         worker_init_fn=worker_init_fn,
         drop_last=True)
     test_iterloader = iter(test_dataloader)
@@ -238,7 +240,7 @@ def main(
         _ = saverloader.load(init_dir, model)
         model.eval()
     elif modeltype=='raft':
-        model = Raftnet(ckpt_name='../RAFT/models/raft-things.pth').cuda()
+        model = Raftnet(ckpt_name='../../RAFT/models/raft-things.pth').cuda()
         model.eval()
     elif modeltype=='dino':
         patch_size = 8
@@ -270,11 +272,13 @@ def main(
             scalar_freq=int(log_freq/2),
             just_gif=True)
 
-        try:
-            sample = next(test_iterloader)
-        except StopIteration:
-            test_iterloader = iter(test_dataloader)
-            sample = next(test_iterloader)
+        gotit = (False,False)
+        while not all(gotit):
+            try:
+                sample, gotit = next(test_iterloader)
+            except StopIteration:
+                test_iterloader = iter(test_dataloader)
+                sample, gotit = next(test_iterloader)
 
         read_time = time.time()-read_start_time
         iter_start_time = time.time()
