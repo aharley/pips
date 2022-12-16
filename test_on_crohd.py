@@ -233,6 +233,7 @@ def main(
         req_occlusion=True,
         stride=4,
         log_dir='logs_test_on_crohd',
+        dataset_location='/data/head_tracking',
         max_iters=0, # auto-select based on dataset
         log_freq=100,
         shuffle=False,
@@ -240,6 +241,9 @@ def main(
         use_augs=False,
 ):
     # the idea in this file is to evaluate on head tracking in croHD
+
+    # pips vis: 4.57
+    # pips occ: 7.71
     
     assert(modeltype=='pips' or modeltype=='raft' or modeltype=='dino')
     
@@ -259,7 +263,7 @@ def main(
 
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
 
-    dataset = CrohdDataset(seqlen=S*S_stride)
+    dataset = CrohdDataset(seqlen=S*S_stride, dataset_root=dataset_location)
     test_dataloader = DataLoader(
         dataset,
         batch_size=B,

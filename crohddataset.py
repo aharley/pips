@@ -12,9 +12,9 @@ import imageio
 import cv2
 
 class CrohdDataset(torch.utils.data.Dataset):
-    def __init__(self, seqlen=8, dset='t'):
-        dataset_location = "../head_tracking/HT21"
-        label_location = "../head_tracking/HT21Labels"
+    def __init__(self, seqlen=8, dset='t', dataset_root='../head_tracking'):
+        dataset_location = '%s/HT21' % dataset_root
+        label_location = '%s/HT21Labels' % dataset_root
         subfolders = []
 
         if dset == 't':
@@ -28,6 +28,9 @@ class CrohdDataset(torch.utils.data.Dataset):
         else:
             raise Exception("unexpceted dset. Choose between t and v.")
 
+        print('dataset_location', dataset_location)
+        print('label_location', label_location)
+        
         # read gt for subfolders
         self.dataset_location = dataset_location
         self.label_location = label_location
