@@ -11,10 +11,16 @@ from torch import nn, einsum
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
 
-def balanced_ce_loss(pred, gt):
+def balanced_ce_loss(pred, gt, valid=None):
     # pred and gt are the same shape
     for (a,b) in zip(pred.size(), gt.size()):
         assert(a==b) # some shape mismatch!
+    if valid is not None:
+        for (a,b) in zip(pred.size(), valid.size()):
+            assert(a==b) # some shape mismatch!
+    else:
+        valid = torch.ones_like(gt)
+        
     pos = (gt > 0.95).float()
     neg = (gt < 0.05).float()
 
@@ -23,8 +29,8 @@ def balanced_ce_loss(pred, gt):
     b = F.relu(a)
     loss = b + torch.log(torch.exp(-b)+torch.exp(a-b))
     
-    pos_loss = utils.basic.reduce_masked_mean(loss, pos)
-    neg_loss = utils.basic.reduce_masked_mean(loss, neg)
+    pos_loss = utils.basic.reduce_masked_mean(loss, pos*valid)
+    neg_loss = utils.basic.reduce_masked_mean(loss, neg*valid)
 
     balanced_loss = pos_loss + neg_loss
 
@@ -60,7 +66,7 @@ def score_map_loss(fcps, trajs_g, vis_g, valids):
     x_, y_ = xy_[:,0], xy_[:,1] # BSN
     ind = (x_ >= 0) & (x_ <= (W8-1)) & (y_ >= 0) & (y_ <= (H8-1)) & (valid_ > 0) & (vis_ > 0) # BSN
     fcp_ = fcp_[ind] # N_,I,H8,W8
-    xy_ = xy_[ind] # N_
+    xy_ = xy_[ind] # N_,2
     N_ = fcp_.shape[0]
     # N_ is the number of heatmaps with valid targets
 
@@ -279,11 +285,7 @@ class DeltaBlock(nn.Module):
         
         self.input_dim = input_dim
 
-        use_ones = True
-        if use_ones:
-            kitchen_dim = 2*(corr_levels * (2*corr_radius + 1)**2) + input_dim + 64*3 + 3
-        else:
-            kitchen_dim = (corr_levels * (2*corr_radius + 1)**2) + input_dim + 64*3 + 3
+        kitchen_dim = (corr_levels * (2*corr_radius + 1)**2) + input_dim + 64*3 + 3
 
         self.hidden_dim = hidden_dim
 
@@ -357,14 +359,10 @@ class CorrBlock:
         x0 = coords[:,0,:,0].round().clamp(0, self.W-1).long()
         y0 = coords[:,0,:,1].round().clamp(0, self.H-1).long()
 
-        use_ones = True
-        
         H, W = self.H, self.W
         out_pyramid = []
         for i in range(self.num_levels):
             corrs = self.corrs_pyramid[i] # B, S, N, H, W
-            if use_ones:
-                ones = torch.ones_like(corrs)
             _, _, _, H, W = corrs.shape
             
             dx = torch.linspace(-r, r, 2*r+1)
@@ -376,12 +374,7 @@ class CorrBlock:
             coords_lvl = centroid_lvl + delta_lvl
 
             corrs = bilinear_sampler(corrs.reshape(B*S*N, 1, H, W), coords_lvl)
-            if use_ones:
-                ones = bilinear_sampler(ones.reshape(B*S*N, 1, H, W), coords_lvl.detach()).detach()
             corrs = corrs.view(B, S, N, -1)
-            if use_ones:
-                ones = ones.view(B, S, N, -1)
-                corrs = torch.cat([corrs, ones], dim=3) # B,S,N,RR*2
             out_pyramid.append(corrs)
 
         out = torch.cat(out_pyramid, dim=-1) # B, S, N, LRR*2
@@ -425,10 +418,13 @@ class Pips(nn.Module):
             nn.GELU(),
         )
         self.vis_predictor = nn.Sequential(
+            # nn.GroupNorm(1, self.latent_dim),
+            # nn.Linear(self.latent_dim, self.latent_dim),
+            # nn.GELU(),
             nn.Linear(self.latent_dim, 1),
         )
 
-    def forward(self, xys, rgbs, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False):
+    def forward(self, xys, rgbs, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False, is_train=False):
         total_loss = torch.tensor(0.0).cuda()
 
         B, N, D = xys.shape
@@ -448,7 +444,7 @@ class Pips(nn.Module):
         fmaps = fmaps_.reshape(B, S, self.latent_dim, H8, W8)
 
         if sw is not None and sw.save_this:
-            sw.summ_feats('tff/0_fmaps', fmaps.unbind(1))
+            sw.summ_feats('1_model/0_fmaps', fmaps.unbind(1))
 
         xys_ = xys.clone()/float(self.stride)
 
@@ -468,14 +464,14 @@ class Pips(nn.Module):
             ffeat = feat_init
         ffeats = ffeat.unsqueeze(1).repeat(1, S, 1, 1) # B, S, N, C
         
+        coords_bak = coords.clone()
+        
         coord_predictions = []
         coord_predictions2 = []
 
         # pause at beginning
         coord_predictions2.append(coords.detach() * self.stride)
         coord_predictions2.append(coords.detach() * self.stride)
-
-        coords_bak = coords.clone()
 
         fcps = []
         ccps = []
@@ -519,7 +515,6 @@ class Pips(nn.Module):
             # for mixer, i want everything in the format B*N, S, C
             fcorrs_ = fcorrs.permute(0, 2, 1, 3).reshape(B*N, S, LRR)
             flows_ = (coords - coords[:,0:1]).permute(0,2,1,3).reshape(B*N, S, 2)
-            # coords_ = coords.permute(0,3,1,2) # B, 2, S, N
             times_ = torch.linspace(0, S, S, device=device).reshape(1, S, 1).repeat(B*N, 1, 1) # B*N,S,1
             flows_ = torch.cat([flows_, times_], dim=2) # B*N,S,2
 
@@ -536,7 +531,8 @@ class Pips(nn.Module):
 
             coords = coords + delta_coords_.reshape(B, N, S, 2).permute(0,2,1,3)
 
-            coords[:,0] = coords_bak[:,0] # lock coord0 for target
+            if not is_train:
+                coords[:,0] = coords_bak[:,0] # lock coord0 for target
 
             coord_predictions.append(coords * self.stride)
             coord_predictions2.append(coords * self.stride)
@@ -580,14 +576,14 @@ class Pips(nn.Module):
                                  fcp,
                                  fcp[:,-1].unsqueeze(1),
                                  fcp[:,-1].unsqueeze(1)], dim=1) # pause on end
-                fcp_vis = sw.summ_oneds('tff/2_fcp_s%d' % s, fcp.unbind(1), norm=False, only_return=True)
+                fcp_vis = sw.summ_oneds('1_model/2_fcp_s%d' % s, fcp.unbind(1), norm=False, only_return=True)
                 vis_fcp.append(fcp_vis)
 
                 kp = kps[0:1,s] # 1, I, 3, H8, W8
                 kp = torch.cat([kp,
                                 kp[:,-1].unsqueeze(1),
                                 kp[:,-1].unsqueeze(1)], dim=1) # pause on end
-                kp_vis = sw.summ_rgbs('tff/2_kp_s%d' % s, kp.unbind(1), only_return=True)
+                kp_vis = sw.summ_rgbs('1_model/2_kp_s%d' % s, kp.unbind(1), only_return=True)
 
                 kp_any = (torch.max(kp_vis, dim=2, keepdims=True)[0]).repeat(1, 1, 3, 1, 1)
                 kp_vis[kp_any==0] = fcp_vis[kp_any==0]
@@ -598,11 +594,11 @@ class Pips(nn.Module):
 
             vis_all = vis_all.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
             vis_fcp = vis_fcp.permute(0, 2, 3, 1, 4, 5).reshape(1, -1, 3, S*H8, W8)
-            sw.summ_rgbs('tff/2_kp_s', vis_all.unbind(1))
+            sw.summ_rgbs('1_model/2_kp_s', vis_all.unbind(1))
 
         if trajs_g is not None:
             seq_loss = sequence_loss(coord_predictions, trajs_g, vis_g, valids, 0.8)
-            vis_loss, _ = balanced_ce_loss(vis_e, vis_g)
+            vis_loss, _ = balanced_ce_loss(vis_e, vis_g, valids)
             ce_loss = score_map_loss(fcps, trajs_g/float(self.stride), vis_g, valids)
             losses = (seq_loss, vis_loss, ce_loss)
         else:
