@@ -543,8 +543,9 @@ def main(
         B=1,
         S=8,
         modeltype='pips',
-        init_dir='./reference_model',
+        init_dir='reference_model',
         log_dir='logs_test_on_badja',
+        data_dir='/data/badja_data',
         stride=4,
         max_iters=7,
         log_freq=99, # vis is very slow here
@@ -552,6 +553,8 @@ def main(
 ):
     # the idea in this file is to evaluate on keypoint propagation in BADJA
 
+    init_dir = './reference_model'
+    
     assert(modeltype=='pips' or modeltype=='raft' or modeltype=='dino')
     
     ## autogen a name
@@ -564,7 +567,7 @@ def main(
     
     writer_t = SummaryWriter(log_dir + '/' + model_name + '/t', max_queue=10, flush_secs=60)
 
-    test_dataset = BadjaDataset()
+    test_dataset = BadjaDataset(data_dir)
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=B,
