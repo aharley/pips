@@ -35,7 +35,7 @@ This is the official code release for our ECCV2022 paper on tracking particles t
   ```
   pips: ate_vis = 6.03, ate_occ = 19.56
   raft: ate_vis = 16.65, ate_occ = 43.22
-  dino: (this needs another few hours to run...)
+  dino: ate_vis = 42.98, ate_occ = 76.78
   ```
 
 ## Requirements
