@@ -4,8 +4,39 @@ This is the official code release for our ECCV2022 paper on tracking particles t
 
 **[[Paper](https://arxiv.org/abs/2204.04153)] [[Project Page](https://particle-video-revisited.github.io/)]**
 
+
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
+### Update 12/15/22:
+
+- Added new reference model, trained on a slightly harder version of FlyingThings++ and larger batch size.
+- Updated `train.py` and `flyingthings.py` with these settings. Get the new reference model (as before) with `./get_reference_model.sh` or from [HuggingFace](https://huggingface.co/aharley/pips).
+- New results are better than the paper. Here they are: 
+
+  BADJA:
+  ```
+  bear: 76.1
+  camel: 91.6
+  cows: 87.7
+  dog-agility: 31.0
+  dog: 45.4
+  horsejump-high: 60.9
+  horsejump-low: 58.1
+  avg: 64.4
+  ```
+
+  CroHD:
+  ```
+  vis: 4.57
+  occ: 7.71
+  ```
+
+  FlyingThings:
+  ```
+  pips: ate_vis = 6.03, ate_occ = 19.56
+  raft: ate_vis = 16.65, ate_occ = 43.22
+  dino: (this needs another few hours to run...)
+  ```
 
 ## Requirements
 
