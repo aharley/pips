@@ -89,6 +89,8 @@ To inspect our PIPs model implementation, the main file to look at is `nets/pips
 
 ## FlyingThings++ dataset
 
+To download our exact FlyingThings++ dataset, try [this link](https://drive.google.com/drive/folders/1zzWkGGFgJPyHpVaSA19zpYlux1Mf6wGC?usp=share_link). If the link doesn't work, contact me for a secondary link, or create the data from the original FlyingThings, as described next. 
+
 To create our FlyingThings++ dataset, first [download FlyingThings](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html). The data should look like:
 
 ```
