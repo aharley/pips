@@ -152,25 +152,22 @@ def main(
         horz_flip=True, # this causes B*=2
         vert_flip=True, # this causes B*=2
         stride=8, # spatial stride of the model 
-        I=2, # inference iters of the model
+        I=4, # inference iters of the model
         crop_size=(384,512), # the raw data is 540,960
         # crop_size=(256,384), # the raw data is 540,960
         use_augs=True, # resizing/jittering/color/blur augs
         # dataset
-        dataset_location='/data2/flyingthings',
-        badja_location='/data2/badja2',
+        dataset_location='/data/flyingthings',
         subset='all', # dataset subset
         shuffle=True, # dataset shuffling
         # optimization
         lr=5e-4,
         grad_acc=1,
         max_iters=200000,
-        # max_iters=100,
         use_scheduler=True,
         # summaries
         log_dir='/data/my_pips/logs_train',
         log_freq=4000,
-        # log_freq=10,
         val_freq=2000,
         # saving/loading
         ckpt_dir='/data/my_pips/checkpoints',
