@@ -123,7 +123,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
 
             folder_names = [folder.split('/')[-1] for folder in glob.glob(os.path.join(traj_root_path, "*"))]
             folder_names = sorted(folder_names)
-            
+
             for ii, folder_name in enumerate(folder_names):
                 for lr in ['left', 'right']:
                     cur_rgb_path = os.path.join(rgb_root_path, folder_name, lr)
@@ -145,6 +145,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
                                     sys.stdout.flush()
         print('found %d samples in %s (dset=%s, subset=%s, version=%s)' % (len(self.rgb_paths), dataset_location, dset, self.subset, version))
 
+
         # we also need to step through and collect ooccluder info
         print('loading occluders...')
 
@@ -161,7 +162,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
 
             folder_names = [folder.split('/')[-1] for folder in glob.glob(os.path.join(occ_root_path, "*"))]
             folder_names = sorted(folder_names)
-            
+
             for folder_name in folder_names:
                 
                 for lr in ['left', 'right']:
@@ -189,7 +190,6 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         print('found %d occluders in %s (dset=%s, subset=%s, version=%s)' % (len(self.occ_rgb_paths), dataset_location, dset, self.subset, occ_version))
 
         # photometric augmentation
-        # self.photo_aug = ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.5/3.14)
         self.photo_aug = ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.25/3.14)
         self.blur_aug = GaussianBlur(11, sigma=(0.1, 2.0))
         
@@ -209,7 +209,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         # spatial augmentations
         self.pad_bounds = [0, 100]
         self.crop_size = crop_size
-        self.resize_lim = [0.5, 2.0] # sample resizes from here
+        self.resize_lim = [0.25, 2.0] # sample resizes from here
         self.resize_delta = 0.2
         self.max_crop_offset = 100
         
@@ -218,9 +218,12 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         self.v_flip_prob = 0.5
 
 
-    def getitem_helper(self, index):
+    def getitem_helper(self, index, print_timings=False):
         sample = None
         gotit = False
+
+        if print_timings:
+            step_start_time = time.time()
 
         cur_rgb_path = self.rgb_paths[index]
         cur_traj_path = self.traj_paths[index]
@@ -244,6 +247,12 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         # the data we loaded is all visible
         visibles = np.ones((S_load, N))
 
+        if print_timings:
+            step_time = time.time()-step_start_time
+            print('reading paths and npy %.2f' % step_time)
+            step_start_time = time.time()
+            ###
+
         if N < self.N:
             return None, False
 
@@ -259,6 +268,15 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
             masks.append(mask)
 
 
+        if print_timings:
+            #### TIMING
+            step_time = time.time()-step_start_time
+            print('reading rgbs and masks %.2f' % step_time)
+            step_start_time = time.time()
+            ###
+
+        # print('len(rgbs), S, S_load', len(rgbs), self.S, self.S_load)
+        # print('len(rgbs)', len(rgbs))
         if self.S < self.S_load:
             s_ind = np.random.randint(0, self.S_load-self.S)
             rgbs = rgbs[s_ind:s_ind+self.S]
@@ -270,12 +288,28 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
 
         rgbs, occs, masks, trajs, visibles, valids = self.add_occluders(rgbs, masks, trajs, visibles, valids)
 
+        if print_timings:
+            #### TIMING
+            step_time = time.time()-step_start_time
+            print('add occ %.2f' % step_time)
+            step_start_time = time.time()
+            ###
+
+        # print('occ rgbs[0]', rgbs[0].shape)
         if self.use_augs:
             rgbs, trajs, visibles = self.add_photometric_augs(rgbs, trajs, visibles)
             rgbs, occs, masks, trajs = self.add_spatial_augs(rgbs, occs, masks, trajs, visibles)
         else:
             rgbs, occs, masks, trajs = self.just_crop(rgbs, occs, masks, trajs, visibles)
 
+
+        if print_timings:
+            #### TIMING
+            step_time = time.time()-step_start_time
+            print('other augs %.2f' % step_time)
+            step_start_time = time.time()
+            ###
+ 
         H, W = rgbs[0].shape[:2]
         assert(H==self.crop_size[0])
         assert(W==self.crop_size[1])
@@ -379,7 +413,16 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         if torch.sum(valids[0,:]) < self.N:
             return None, False
 
+        if print_timings:
+            #### TIMING
+            step_time = time.time()-step_start_time
+            print('inb and vis %.2f' % step_time)
+            step_start_time = time.time()
+            ###
+
         sample = {
+            # 'cur_rgb_path': cur_rgb_path,
+            # 'img_names': img_names,
             'rgbs': rgbs,
             'occs': occs,
             'masks': masks,
@@ -391,10 +434,9 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
     
     def __getitem__(self, index):
         gotit = False
-        # failed_once = False
         fail_count = 0
         
-        sample, gotit = self.getitem_helper(index)#, failed_once=failed_once)
+        sample, gotit = self.getitem_helper(index)
         if not gotit:
             print('warning: sampling failed')
             # fake sample, so we can still collate
@@ -409,7 +451,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
             
         return sample, gotit
     
-    def add_occluders(self, rgbs, masks, trajs, visibles, valids):
+    def add_occluders(self, rgbs, masks, trajs, visibles, valids, print_timings=False):
         '''
         Input:
             rgbs --- list of len S, each = np.array (H, W, 3)
@@ -421,18 +463,32 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         '''
 
         T, N, _ = trajs.shape
+
+        # print('trajs', trajs.shape)
+        # print('len(rgbs)', len(rgbs))
         
         S = len(rgbs)
         H, W = rgbs[0].shape[:2]
 
         assert(S==T)
 
+        if print_timings:
+            step_start_time = time.time()
+        
+
+        # rgbs = [0.1*rgb.astype(np.float32) for rgb in rgbs]
         rgbs = [rgb.astype(np.float32) for rgb in rgbs]
         occs = [np.zeros_like(rgb[:,:,0]) for rgb in rgbs]
 
-        max_occ = 8
+        max_occ = 12
         alt_inds = np.random.choice(len(self.occ_rgb_paths), max_occ, replace=False)
 
+        if print_timings:
+            step_time = time.time()-step_start_time
+            print('  occ init %.2f' % step_time)
+            step_start_time = time.time()
+        
+        
         ############ occluders from other videos ############
         for oi in range(max_occ): # number of occluders:
             # alt_ind = np.random.choice(len(self.occ_rgb_paths))
@@ -456,6 +512,11 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
 
             occ_id = int(id_str)
 
+            if print_timings:
+                step_time = time.time()-step_start_time
+                print('  load images and alt %.2f' % step_time)
+                step_start_time = time.time()
+
             alt_rgbs = []
             alt_masks = []
             alt_masks_blur = []
@@ -471,16 +532,35 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
                 alt_masks.append(mask)#.reshape(H, W, 1))
                 alt_masks_blur.append(mask_blur)#.reshape(H, W, 1))
 
+            if print_timings:
+                step_time = time.time()-step_start_time
+                print('  get masks and blur %.2f' %  step_time)
+                step_start_time = time.time()
+            
             alt_visibles = np.ones((self.S, alt_trajs.shape[1]))
             alt_valids = np.ones((self.S, alt_trajs.shape[1]))
 
             # random photometric aug on this occluder
             alt_rgbs, alt_trajs, alt_visibles = self.add_photometric_augs(alt_rgbs, alt_trajs, alt_visibles, eraser=False, replace=False)
+            # if print_timings:
+            #     step_time = time.time()-step_start_time
+            #     print('  get photo aug %.2f' %  step_time)
+            #     step_start_time = time.time()
 
             alt_masks_blur = [alt_mask.reshape(H,W,1) for alt_mask in alt_masks_blur]
             rgbs = [rgb*(1.0-alt_mask)+alt_rgb*alt_mask for (rgb,alt_rgb,alt_mask) in zip(rgbs,alt_rgbs,alt_masks_blur)]
+            if print_timings:
+                step_time = time.time()-step_start_time
+                print('  apply masks %.2f' % step_time)
+                step_start_time = time.time()
                 
             occs = [occ+alt_mask for (occ, alt_mask) in zip(occs, alt_masks)]
+            
+            if print_timings:
+                step_time = time.time()-step_start_time
+                print('  update occs %.2f' % step_time)
+                step_start_time = time.time()
+
             
             # # darken the non-occluder, for debug
             # rgbs = [rgb*(1.0-(alt_mask*0.5)) for (rgb,alt_rgb,alt_mask) in zip(rgbs,alt_rgbs,alt_masks)]
@@ -503,6 +583,11 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
             valids = np.concatenate([valids, alt_valids], axis=1)
             visibles = np.concatenate([visibles, alt_visibles], axis=1)
 
+            if print_timings:
+                step_time = time.time()-step_start_time
+                print('  update info %.2f'%  step_time)
+                step_start_time = time.time()
+            
         rgbs = [rgb.astype(np.uint8) for rgb in rgbs]
 
         return rgbs, occs, masks, trajs, visibles, valids
@@ -576,6 +661,7 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
                         # mean_color = np.mean(rgbs[i][y0:y1, x0:x1, :].reshape(-1,3), axis=0)
                         # rgbs[i][y0:y1, x0:x1, :] = mean_color
 
+                        
                         # mean_color = np.mean(rgbs[i][y0:y1, x0:x1, :].reshape(-1,3), axis=0)
                         # rgbs[i][y0:y1, x0:x1, :] = mean_color
                         
@@ -687,9 +773,13 @@ class FlyingThingsDataset(torch.utils.data.Dataset):
         ok_inds = visibles[0,:] > 0
         vis_trajs = trajs[:,ok_inds] # S,?,2
 
-        mid_x = np.mean(vis_trajs[0,:,0])
-        mid_y = np.mean(vis_trajs[0,:,1])
-        
+        if vis_trajs.shape[1] > 0:
+            mid_x = np.mean(vis_trajs[0,:,0])
+            mid_y = np.mean(vis_trajs[0,:,1])
+        else:
+            mid_y = self.crop_size[0]
+            mid_x = self.crop_size[1]
+            
         x0 = int(mid_x - self.crop_size[1]//2)
         y0 = int(mid_y - self.crop_size[0]//2)
         
