@@ -73,7 +73,7 @@ def score_map_loss(fcps, trajs_g, vis_g, valids):
     # make gt with ones at the rounded spatial inds in here
     gt_ = torch.zeros_like(fcp_) # N_,I,H8,W8
     for n in range(N_):
-        gt_[n,:,xy_[n,1],xy_[n,0]] = 1 # N_,H8,W8 with a 1 in the right spot
+        gt_[n,:,xy_[n,1],xy_[n,0]] = 1 # put a 1 in the right spot, for each el in I
 
     ## softmax
     # fcp_ = fcp_.reshape(N_*I,H8*W8)
