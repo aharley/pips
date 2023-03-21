@@ -371,7 +371,7 @@ def main(
                 try:
                     sample, gotit = next(val_iterloader)
                 except StopIteration:
-                    train_iterloader = iter(val_dataloader)
+                    val_iterloader = iter(val_dataloader)
                     sample, gotit = next(val_iterloader)
 
             with torch.no_grad():
