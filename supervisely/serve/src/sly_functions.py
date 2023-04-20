@@ -7,7 +7,7 @@ import cv2
 import supervisely as sly
 from supervisely.geometry.geometry import Geometry
 import sly_globals as g
-
+from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -21,13 +21,12 @@ H_RESIZED, W_RESIZED = 360, 640
 
 
 def init_tracker(logger, stride: int = 4, frames_per_iter: int = FRAMES_PER_ITER):
-    init_dir = "/workspaces/pips_tracker/reference_model"
-    # init_dir = "/pips_tracker/reference_model"
+    init_dir = Path(g.pips_root_path) / "reference_model"
     model = Pips(S = frames_per_iter, stride = stride).cuda()
     try:
         logger.info("Loading model.")
         if init_dir:
-            _ = saverloader.load(init_dir, model)
+            _ = saverloader.load(str(init_dir), model)
         model.eval()
     except Exception as e:
         logger.error(f"Something goes wrong: {str(e)}")
