@@ -26,7 +26,7 @@ class TrackerContainer:
         self.add_geometries()
         self.add_frames_indexes()
         self.load_frames()
-        self.model = sly_functions.init_tracker()
+        self.model = sly_functions.init_tracker(logger=self.logger)
 
         self.logger.info(f'TrackerController Initialized')
 
@@ -49,6 +49,7 @@ class TrackerContainer:
         for frame_index in self.frames_indexes:
             img_rgb = self.api.video.frame.download_np(self.video_id, frame_index)
             rgbs.append(torch.from_numpy(img_rgb).permute(2,0,1))
+        self._w, self._h = rgbs[0].shape[1:]
         self.frames = torch.stack(rgbs, dim=0).unsqueeze(0)
     
     def track(self):
@@ -60,6 +61,7 @@ class TrackerContainer:
                 trajs = sly_functions.run_model(self.model, self.frames, points)
 
             for i, new_points in enumerate(trajs[1:], start=1):
+                new_points = sly_functions.check_bounds(new_points, self._w - 1, self._h - 1)
                 frame_index = self.frames_indexes[i]
                 new_figure = sly_functions.np_to_geometry(new_points, geometry.geometry_name())
                 self.api.video.figure.create(
