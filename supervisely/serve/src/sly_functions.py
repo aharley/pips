@@ -20,13 +20,19 @@ FRAMES_PER_ITER = 8
 H_RESIZED, W_RESIZED = 360, 640
 
 
-def init_tracker(stride: int = 4, frames_per_iter: int = FRAMES_PER_ITER):
+def init_tracker(logger, stride: int = 4, frames_per_iter: int = FRAMES_PER_ITER):
     init_dir = "/workspaces/pips_tracker/reference_model"
+    # init_dir = "/pips_tracker/reference_model"
     model = Pips(S = frames_per_iter, stride = stride).cuda()
-    if init_dir:
-        _ = saverloader.load(init_dir, model)
-    model.eval()
-
+    try:
+        logger.info("Loading model.")
+        if init_dir:
+            _ = saverloader.load(init_dir, model)
+        model.eval()
+    except Exception as e:
+        logger.error(f"Something goes wrong: {str(e)}")
+        raise e
+    logger.info("Model loaded.")
     return model
 
 
@@ -47,7 +53,13 @@ def pad_origin(h_origin: int, w_origin: int):
     top_pad, left_pad = h_pad // 2, w_pad // 2
     bot_pad, right_pad = h_pad - top_pad, w_pad - left_pad 
     
-    return left_pad, right_pad, top_pad, bot_pad, 
+    return left_pad, right_pad, top_pad, bot_pad
+
+
+def check_bounds(points: np.ndarray, h_max: int, w_max: int):
+    points[:, 0] = np.clip(points[:, 0], a_max=w_max, a_min=0)
+    points[:, 1] = np.clip(points[:, 1], a_max=h_max, a_min=0)
+    return points
 
 
 def run_model(model: Pips, frames: torch.Tensor, orig_points: torch.Tensor):
