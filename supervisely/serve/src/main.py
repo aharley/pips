@@ -38,6 +38,7 @@ def get_session_info(api: sly.Api, task_id, context, state, app_logger):
 
 @g.my_app.callback("track")
 @sly.timeit
+@send_error_data
 def track(api: sly.Api, task_id, context, state, app_logger):
     tracker = TrackerContainer(context, api, app_logger)
     tracker.track()
@@ -46,7 +47,6 @@ def track(api: sly.Api, task_id, context, state, app_logger):
 
 
 def main():
-    
     if torch.cuda.is_available():    
         sly.logger.info("🟩 Model has been successfully deployed")
 
