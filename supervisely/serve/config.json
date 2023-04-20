@@ -11,12 +11,10 @@
     "docker_image": "supervisely/pips:latest",
     "main_script": "supervisely/serve/src/main.py",
     "task_location": "application_sessions",
-    "icon": "https://imgur.com/lc4jipY.png",
-    "icon_cover": true,
     "isolate": true,
     "headless": true,
     "need_gpu": true,
-    "instance_version": "6.4.29",
+    "instance_version": "6.71.17",
     "restart_policy": "on_error",
     "session_tags": [
       "sly_video_tracking"
