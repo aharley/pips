@@ -19,3 +19,4 @@ RUN mkdir /pips_tracker/reference_model
 RUN cd /pips_tracker/reference_model && wget --no-check-certificate 'https://github.com/supervisely-ecosystem/pips/releases/download/v0.0.1/model-000200000.pth' -O model-000200000.pth
 
 RUN apt update && apt install -y python-is-python3
+RUN mv /pips_tracker/ /root/pips_tracker/
