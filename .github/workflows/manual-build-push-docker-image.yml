@@ -29,5 +29,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
+          context: .
           file: supervisely/docker/Dockerfile
           tags: supervisely/pips:${{ github.event.inputs.tag_version }}
