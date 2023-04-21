@@ -18,8 +18,9 @@ sly.logger.info(f"Module source directory: {pips_root_path}")
 # load_dotenv(os.path.join(pips_root_path, "supervisely/serve/debug.env"))
 # load_dotenv(os.path.join(pips_root_path, "supervisely/serve/secret_debug.env"), override=True)
 
+api = sly.Api()
 my_app = sly.AppService()
-api = my_app.public_api
+# api = my_app.public_api
 task_id = my_app.task_id
 
 sly.fs.clean_dir(my_app.data_dir)  # @TODO: for debug
