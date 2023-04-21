@@ -15,8 +15,8 @@ sys.path.append(pips_root_path)
 
 sly.logger.info(f"Module source directory: {pips_root_path}")
 
-load_dotenv(os.path.join(pips_root_path, "supervisely/serve/debug.env"))
-load_dotenv(os.path.join(pips_root_path, "supervisely/serve/secret_debug.env"), override=True)
+# load_dotenv(os.path.join(pips_root_path, "supervisely/serve/debug.env"))
+# load_dotenv(os.path.join(pips_root_path, "supervisely/serve/secret_debug.env"), override=True)
 
 my_app = sly.AppService()
 api = my_app.public_api
