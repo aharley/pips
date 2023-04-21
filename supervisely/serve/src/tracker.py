@@ -18,6 +18,7 @@ class TrackerContainer:
         self.object_ids = list(context["objectIds"])
         self.figure_ids = list(context["figureIds"])
         self.direction = context["direction"]
+        self.stop = len(self.object_ids) * self.frames_count
 
         self.geometries: List[Geometry] = []
         self.frames_indexes: List[int] = []
@@ -61,6 +62,7 @@ class TrackerContainer:
                 trajs = sly_functions.run_model(self.model, self.frames, points)
 
             for i, new_points in enumerate(trajs[1:], start=1):
+                cur_pos = i + (pos - 1) * self.frames_count
                 new_points = sly_functions.check_bounds(new_points, self._w - 1, self._h - 1)
                 frame_index = self.frames_indexes[i]
                 new_figure = sly_functions.np_to_geometry(new_points, geometry.geometry_name())
@@ -73,10 +75,13 @@ class TrackerContainer:
                     self.track_id
                 )
             
-            stop = self._notify(pos)
-            if stop:
-                self.logger("Task stoped by user.")
-                self._notify(len(self.object_ids))
+                stop = self._notify(cur_pos)
+                if stop:
+                    self.logger("Task stoped by user.")
+                    self._notify(self.stop)
+                    return
+
+        self._notify(self.stop)
     
     def _notify(self, pos: int):
         return self.api.video.notify_progress(
@@ -85,5 +90,5 @@ class TrackerContainer:
             min(self.frames_indexes),
             max(self.frames_indexes),
             pos,
-            len(self.object_ids),
+            self.stop,
         )
