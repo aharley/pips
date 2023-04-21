@@ -7,3 +7,5 @@
 *.gif
 
 __pycache__
+.vscode
+.devcontainer
