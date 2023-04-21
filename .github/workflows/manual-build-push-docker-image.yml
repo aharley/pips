@@ -29,5 +29,5 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          file: Dockerfile
-          tags: supervisely/stable-diffusion-app:${{ github.event.inputs.tag_version }}
+          file: supervisely/docker/Dockerfile
+          tags: supervisely/pips-tracker:${{ github.event.inputs.tag_version }}
