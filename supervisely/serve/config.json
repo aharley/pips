@@ -1,6 +1,7 @@
 {
     "name": "Pips object tracking",
     "type": "app",
+    "version": "2.0.0",
     "categories": [
       "neural network",
       "videos",
@@ -14,7 +15,7 @@
     "isolate": true,
     "headless": true,
     "need_gpu": true,
-    "instance_version": "6.71.17",
+    "instance_version": "6.7.16",
     "restart_policy": "on_error",
     "session_tags": [
       "sly_video_tracking"
