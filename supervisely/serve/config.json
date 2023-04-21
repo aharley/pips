@@ -9,7 +9,7 @@
       "serve"
     ],
     "description": "serve and use in videos annotator",
-    "docker_image": "supervisely/pips:latest",
+    "docker_image": "supervisely/pips:0.0.2",
     "main_script": "supervisely/serve/src/main.py",
     "task_location": "application_sessions",
     "isolate": true,
