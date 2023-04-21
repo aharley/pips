@@ -28,7 +28,9 @@ sly.fs.clean_dir(my_app.data_dir)  # @TODO: for debug
 team_id = int(os.environ['context.teamId'])
 workspace_id = int(os.environ['context.workspaceId'])
 # device = os.environ['modal.state.device']
-
+init_dir = os.environ.get("WEIGHTS_DIR", None)
+if init_dir is None:
+    init_dir = str(pathlib.Path(pips_root_path) / "reference_model")
 
 local_info_dir = os.path.join(my_app.data_dir, "info")
 sly.fs.mkdir(local_info_dir)

@@ -21,7 +21,7 @@ H_RESIZED, W_RESIZED = 360, 640
 
 
 def init_tracker(logger, stride: int = 4, frames_per_iter: int = FRAMES_PER_ITER):
-    init_dir = Path(g.pips_root_path) / "reference_model"
+    init_dir = g.init_dir
     model = Pips(S = frames_per_iter, stride = stride).cuda()
     try:
         logger.info("Loading model.")
