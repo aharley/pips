@@ -9,3 +9,6 @@
 __pycache__
 .vscode
 .devcontainer
+debug.env
+secret_debug.env
+*.pth
