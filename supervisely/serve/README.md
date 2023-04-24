@@ -10,7 +10,6 @@ state-of-the art interactive tracking using point trajectories integrated into S
 <p align="center">
   <a href="#Overview">Overview</a> •
   <a href="#How-To-Run">How To Run</a> •
-  <a href="#Controls">Controls</a> •
   <a href="#Acknowledgment">Acknowledgment</a>
 </p>
 
