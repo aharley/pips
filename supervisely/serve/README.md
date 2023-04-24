@@ -25,29 +25,21 @@ state-of-the art interactive tracking using point trajectories integrated into S
 
 # Overview
 
-This app is an integration of PIPs model, which is a NN-assisted object tracking model. The PIPs model can track point trajectories. It is used to implement the tracking of polygons and rectangles that have multiple points on videos. The app could only be applied to videos.
+This app is an integration of PIPs model, which is a NN-assisted interactive object tracking model. The PIPs model can track point trajectories. It is used to implement the tracking of polygons, points and rectangles on videos.
 
 # How to Run
 
-1. Run the application from Ecosystem
+0. Run the application from Ecosystem
 
-2. Open Video Labeling interface
+1. Open Video Labeling interface
 
-3. Configure tracking settings
+2. Configure tracking settings
 
-4. Press `Track` button
+3. Press `Track` button
 
-<img src="" />
+<img src="https://user-images.githubusercontent.com/115161827/233968831-08a1c8ab-d0e3-409b-b295-8af74e4b53e6.gif" />
 
-# Controls
-
-| Key                                                           | Description                               |
-| ------------------------------------------------------------- | ------------------------------------------|
-| <kbd>5</kbd>                                       | Rectangle Tool                |
-| <kbd>Ctrl + Space</kbd>                                       | Complete Annotating Object                |
-| <kbd>Space</kbd>                                              | Complete Annotating Figure                |
-| <kbd>Shift + T</kbd>                                          | Track Selected     |
-| <kbd>Shift + Enter</kbd>                                      | Play Segment     |
+4. After finishing working with the app, stop the app manually in the `App sessions` tab
 
 # Acknowledgement
 
