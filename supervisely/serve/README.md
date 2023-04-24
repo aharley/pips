@@ -40,7 +40,7 @@ This app is an integration of PIPs model, which is a NN-assisted interactive obj
 
 4. After finishing working with the app, stop the app manually in the `App sessions` tab
 
-# Acknowledgement
+# Acknowledgment
 
 This app is based on the great work `PIPs` 
 - [GitHub](https://github.com/aharley/pips) ![GitHub Org's stars](https://img.shields.io/github/stars/aharley/pips?style=social) 
