@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="xxx" />
+<img src="https://user-images.githubusercontent.com/115161827/233959102-9c48949f-b353-4a4b-ab7d-c1da99dfd914.jpg" />
   
 # PIPs object tracking
 
@@ -8,7 +8,7 @@ state-of-the art interactive tracking using point trajectories integrated into S
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
 <p align="center">
-  <a href="#Overview">Overview</a> •w
+  <a href="#Overview">Overview</a> •
   <a href="#How-To-Run">How To Run</a> •
   <a href="#Controls">Controls</a> •
   <a href="#Acknowledgment">Acknowledgment</a>
