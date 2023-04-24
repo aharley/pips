@@ -36,7 +36,7 @@ This app is an integration of PIPs model, which is a NN-assisted interactive obj
 
 3. Press `Track` button
 
-<img src="https://user-images.githubusercontent.com/115161827/233968831-08a1c8ab-d0e3-409b-b295-8af74e4b53e6.gif" />
+<img src="https://user-images.githubusercontent.com/115161827/233995613-36aabf55-c840-421d-b1e1-3e026505cb85.gif" />
 
 4. After finishing working with the app, stop the app manually in the `App sessions` tab
 
