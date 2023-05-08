@@ -20,21 +20,6 @@ FRAMES_PER_ITER = 8
 H_RESIZED, W_RESIZED = 360, 640
 
 
-def init_tracker(logger, stride: int = 4, frames_per_iter: int = FRAMES_PER_ITER):
-    init_dir = g.init_dir
-    model = Pips(S = frames_per_iter, stride = stride).cuda()
-    try:
-        logger.info("Loading model.")
-        if init_dir:
-            _ = saverloader.load(str(init_dir), model)
-        model.eval()
-    except Exception as e:
-        logger.error(f"Something goes wrong: {str(e)}")
-        raise e
-    logger.info("Model loaded.")
-    return model
-
-
 def pad_origin(h_origin: int, w_origin: int):
     h_pad, w_pad = 0, 0
     cur_h, cur_w = H_RESIZED, W_RESIZED
@@ -56,8 +41,8 @@ def pad_origin(h_origin: int, w_origin: int):
 
 
 def check_bounds(points: np.ndarray, h_max: int, w_max: int):
-    points[:, 0] = np.clip(points[:, 0], a_max=w_max, a_min=0)
-    points[:, 1] = np.clip(points[:, 1], a_max=h_max, a_min=0)
+    points[:, 0] = np.clip(points[:, 0], a_max=w_max - 1, a_min=0)
+    points[:, 1] = np.clip(points[:, 1], a_max=h_max - 1, a_min=0)
     return points
 
 
@@ -145,6 +130,7 @@ def geometry_to_np(figure: Geometry):
     if isinstance(figure, sly.Polygon):
         return figure.exterior_np[:, ::-1].copy()
     raise ValueError(f"Can't process figures with type `{figure.geometry_name()}`")
+
 
 def np_to_geometry(points: np.ndarray, geom_type: str) -> Geometry:
     if geom_type == "rectangle":

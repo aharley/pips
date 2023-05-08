@@ -12,3 +12,7 @@ __pycache__
 debug.env
 secret_debug.env
 *.pth
+.env
+.venv
+
+.python-version
