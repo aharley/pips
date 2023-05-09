@@ -64,7 +64,7 @@ def run_model(model: Pips, frames: torch.Tensor, orig_points: torch.Tensor):
     rgbs_ = F.interpolate(rgbs_, (H_resized, W_resized), mode="bilinear")
     rgbs = rgbs_.reshape(B, S, C, H_resized, W_resized)
 
-    Rx, Ry = H_padded / W_resized, W_padded / H_resized
+    Rx, Ry = W_padded / W_resized, H_padded / H_resized
 
     points = torch.clone(orig_points)
     points[:, 0] = (points[:, 0] + pads[0]) / Rx
