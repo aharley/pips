@@ -4,37 +4,25 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import cv2
-import supervisely as sly
-from supervisely.geometry.geometry import Geometry
 
 # import sly_globals as g
 # from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-import saverloader
 from nets.pips import Pips
 
 
-FRAMES_PER_ITER = 8
+def pad_origin(h_origin: int, w_origin: int, new_size: Tuple[int, int]):
+    H_RESIZED, W_RESIZED = new_size
 
+    h_mult = h_origin // H_RESIZED + 1
+    w_mult = w_origin // W_RESIZED + 1
 
-def pad_origin(h_origin: int, w_origin: int, cur_size: Tuple[int, int]):
-    h_pad, w_pad = 0, 0
-    H_RESIZED, W_RESIZED = cur_size
-    cur_h, cur_w = H_RESIZED, W_RESIZED
-
-    while cur_h < h_origin:
-        cur_h += H_RESIZED
-    else:
-        h_pad = cur_h - h_origin
-
-    while cur_w < w_origin:
-        cur_w += W_RESIZED
-    else:
-        w_pad = cur_w - w_origin
+    h_pad = abs(H_RESIZED * h_mult - h_origin)
+    w_pad = abs(W_RESIZED * w_mult - w_origin)
 
     top_pad, left_pad = h_pad // 2, w_pad // 2
     bot_pad, right_pad = h_pad - top_pad, w_pad - left_pad
@@ -53,6 +41,7 @@ def run_model(
     frames: torch.Tensor,
     orig_points: torch.Tensor,
     resized_shape: Tuple[int, int],
+    frames_per_iter: int = 8,
     device: str = "cuda",
 ):
     points_number = len(orig_points)
@@ -61,10 +50,11 @@ def run_model(
     H_resized, W_resized = resized_shape
     pads = pad_origin(H_origin, W_origin, resized_shape)
     rgbs_ = F.pad(rgbs_, pads, "constant", 0)
+    _, _, H_padded, W_padded = rgbs_.shape
     rgbs_ = F.interpolate(rgbs_, (H_resized, W_resized), mode="bilinear")
     rgbs = rgbs_.reshape(B, S, C, H_resized, W_resized)
 
-    Rx, Ry = W_origin / W_resized, H_origin / H_resized
+    Rx, Ry = W_padded / W_resized, H_padded / H_resized
 
     points = torch.clone(orig_points)
     points[:, 0] = (points[:, 0] + pads[0]) / Rx
@@ -80,13 +70,13 @@ def run_model(
         traj_e[:, 0] = xy0[:, n]  # B, 1, 2  # set first position
         feat_init = None
         while not done:
-            end_frame = cur_frame + FRAMES_PER_ITER
+            end_frame = cur_frame + frames_per_iter
 
             rgb_seq: torch.Tensor = rgbs[:, cur_frame:end_frame]
             rgb_seq = rgb_seq.to(torch.device(device)).float()
-            S_local = rgb_seq.shape[1]  # may become less then FRAMES_PER_ITER
+            S_local = rgb_seq.shape[1]  # may become less then frames_per_iter
 
-            # add new frames if S_local != FRAMES_PER_ITER
+            # add new frames if S_local != frames_per_iter
             rgb_seq = torch.cat(
                 [rgb_seq, rgb_seq[:, -1].unsqueeze(1).repeat(1, 8 - S_local, 1, 1, 1)], dim=1
             )
@@ -105,12 +95,12 @@ def run_model(
             feat_init = outs[3]
 
             vis = torch.sigmoid(vis)  # visibility confidence
-            xys = preds[-1].reshape(1, FRAMES_PER_ITER, 2)
+            xys = preds[-1].reshape(1, frames_per_iter, 2)
             traj_e[:, cur_frame:end_frame] = xys[:, :S_local]
 
             found_skip = False
             thr = 0.9
-            si_last = FRAMES_PER_ITER - 1  # last frame we are willing to take
+            si_last = frames_per_iter - 1  # last frame we are willing to take
             si_earliest = 1  # earliest frame we are willing to take
             si = si_last
             while not found_skip:
@@ -141,35 +131,12 @@ def run_model(
     return preds
 
 
-def geometry_to_np(figure: Geometry):
-    if isinstance(figure, sly.Rectangle):
-        left_top = [figure.left, figure.top]
-        right_bottom = [figure.right, figure.bottom]
-        return np.array([left_top, right_bottom])
-    if isinstance(figure, sly.Point):
-        return np.array([[figure.col, figure.row]])
-    if isinstance(figure, sly.Polygon):
-        return figure.exterior_np[:, ::-1].copy()
-    raise ValueError(f"Can't process figures with type `{figure.geometry_name()}`")
-
-
-def np_to_geometry(points: np.ndarray, geom_type: str) -> Geometry:
-    if geom_type == "rectangle":
-        points = points.astype(int)
-        left, right = min(points[:, 0]), max(points[:, 0])
-        top, bottom = min(points[:, 1]), max(points[:, 1])
-        fig = sly.Rectangle(
-            top=top,
-            left=left,
-            bottom=bottom,
-            right=right,
-        )
-        return fig
-    if geom_type == "point":
-        col, row = points.squeeze().astype(int)
-        return sly.Point(row, col)
-    if geom_type == "polygon":
-        obj = points.astype(int)[:, ::-1]
-        exterior = [sly.PointLocation(*obj_point) for obj_point in obj]
-        return sly.Polygon(exterior=exterior)
-    raise ValueError(f"Can't process figures with type `{geom_type}`")
+def draw_and_save(img: Union[np.ndarray, torch.Tensor], cord: Tuple[int, int]):
+    if isinstance(img, torch.Tensor):
+        np_img = img.detach().cpu().numpy()
+    else:
+        np_img = img.copy()
+    
+    np_img = cv2.circle(np_img, cord, radius=1, color=(255, 0, 0), thickness=2)
+    i = np.random.randint(1000)
+    cv2.imwrite(f"img_{i}.jpg", np_img)
