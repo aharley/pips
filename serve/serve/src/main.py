@@ -44,7 +44,8 @@ class PipsTracker(Tracking):
         start_object: PredictionPoint,
     ) -> List[PredictionPoint]:
         h_resized = settings.get("h_resized", 360)
-        w_resized = settings.get("h_resized", 640)
+        w_resized = settings.get("w_resized", 640)
+        frames_per_iter = settings.get("frames_per_iter", 8)
 
         rgbs = [torch.from_numpy(rgb_img).permute(2, 0, 1) for rgb_img in rgb_images]
         rgbs = torch.stack(rgbs, dim=0).unsqueeze(0)
@@ -56,6 +57,7 @@ class PipsTracker(Tracking):
                 rgbs,
                 point,
                 (h_resized, w_resized),
+                frames_per_iter,
             )
 
         pred_points = [PredictionPoint("point", p) for p in traj[1:]]
@@ -67,7 +69,10 @@ if sly.is_debug_with_sly_net():
 else:
     model_dir = Path("/weights")  # path in Docker
 
-pips = PipsTracker(model_dir=model_dir, custom_inference_settings=settings)
+pips = PipsTracker(
+    model_dir=str(model_dir),
+    custom_inference_settings=str(settings)
+)
 
 if sly.is_production():
     pips.serve()
