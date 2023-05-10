@@ -42,7 +42,7 @@ def run_model(
     orig_points: torch.Tensor,
     resized_shape: Tuple[int, int],
     frames_per_iter: int = 8,
-    device: str = "cuda",
+    device: str = "cpu",
 ):
     points_number = len(orig_points)
     B, S, C, H_origin, W_origin = frames.shape
@@ -136,7 +136,7 @@ def draw_and_save(img: Union[np.ndarray, torch.Tensor], cord: Tuple[int, int]):
         np_img = img.detach().cpu().numpy()
     else:
         np_img = img.copy()
-    
+
     np_img = cv2.circle(np_img, cord, radius=1, color=(255, 0, 0), thickness=2)
     i = np.random.randint(1000)
     cv2.imwrite(f"img_{i}.jpg", np_img)
