@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Literal
 from typing_extensions import Literal
 from nets.pips import Pips
 
-# import sly_globals as g
 import sly_functions
 import supervisely as sly
 from supervisely.nn.inference import Tracking
