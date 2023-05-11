@@ -25,6 +25,7 @@
   ],
   "community_agent": false,
   "allowed_shapes": [
-    "point"
+    "point",
+    "polygon"
   ]
 }
