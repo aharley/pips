@@ -10,7 +10,7 @@ from nets.pips import Pips
 
 import sly_functions
 import supervisely as sly
-from supervisely.nn.inference import Tracking
+from supervisely.nn.inference import PointTracking
 from supervisely.nn.prediction_dto import PredictionPoint
 
 
@@ -22,7 +22,7 @@ load_dotenv(root / "local.env")
 load_dotenv(os.path.expanduser("~/supervisely.env"))
 
 
-class PipsTracker(Tracking):
+class PipsTracker(PointTracking):
     def load_on_device(
         self,
         model_dir: str,
