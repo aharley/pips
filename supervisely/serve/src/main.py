@@ -15,7 +15,7 @@ from supervisely.nn.prediction_dto import PredictionPoint
 
 
 root = (Path(__file__).parent / ".." / ".." / "..").resolve().absolute()
-settings = root / "serve" / "serve" / "model_settings.yaml"
+settings = root / "supervisely" / "serve" / "model_settings.yaml"
 
 
 load_dotenv(root / "local.env")
