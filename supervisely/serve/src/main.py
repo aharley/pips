@@ -1,76 +1,77 @@
-import functools
-
-import sly_globals as g
-import supervisely as sly
-
-from tracker import TrackerContainer
-
+import os
+import numpy as np
+import saverloader
 import torch
+from dotenv import load_dotenv
+from pathlib import Path
+from typing import Any, Dict, List, Literal
+from typing_extensions import Literal
+from nets.pips import Pips
+
+import sly_functions
+import supervisely as sly
+from supervisely.nn.inference import PointTracking
+from supervisely.nn.prediction_dto import PredictionPoint
 
 
-def send_error_data(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        value = None
-        try:
-            value = func(*args, **kwargs)
-        except Exception as e:
-            track_id = kwargs["context"]["trackId"]
-            api = kwargs["api"]
-            api.post(
-                "videos.notify-annotation-tool",
-                data={
-                    "type": "videos:tracking-error",
-                    "data": {"trackId": track_id, "error": {"message": repr(e)}},
-                },
+root = (Path(__file__).parent / ".." / ".." / "..").resolve().absolute()
+settings = root / "supervisely" / "serve" / "model_settings.yaml"
+
+
+load_dotenv(root / "local.env")
+load_dotenv(os.path.expanduser("~/supervisely.env"))
+
+
+class PipsTracker(PointTracking):
+    def load_on_device(
+        self,
+        model_dir: str,
+        device: Literal["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "cuda:3"] = "cpu",
+    ):
+        frames_per_iter = self.custom_inference_settings_dict.get("frames_per_iter", 8)
+        stride = self.custom_inference_settings_dict.get("stride", 4)
+
+        self.model = Pips(S=frames_per_iter, stride=stride).to(torch.device(device))
+        if model_dir:
+            _ = saverloader.load(str(model_dir), self.model, device=device)
+        self.model.eval()
+        self.device = device
+
+    def predict(
+        self,
+        rgb_images: List[np.ndarray],
+        settings: Dict[str, Any],
+        start_object: PredictionPoint,
+    ) -> List[PredictionPoint]:
+        class_name = start_object.class_name
+        h_resized = settings.get("h_resized", 360)
+        w_resized = settings.get("w_resized", 640)
+        frames_per_iter = settings.get("frames_per_iter", 8)
+
+        rgbs = [torch.from_numpy(rgb_img).permute(2, 0, 1) for rgb_img in rgb_images]
+        rgbs = torch.stack(rgbs, dim=0).unsqueeze(0)
+        point = torch.tensor([[start_object.col, start_object.row]], dtype=float)
+
+        with torch.no_grad():
+            traj = sly_functions.run_model(
+                self.model,
+                rgbs,
+                point,
+                (h_resized, w_resized),
+                frames_per_iter,
+                device=self.device,
             )
-        return value
 
-    return wrapper
-
-
-@g.my_app.callback("ping")
-@sly.timeit
-@send_error_data
-def get_session_info(api: sly.Api, task_id, context, state, app_logger):
-    pass
+        pred_points = [PredictionPoint(class_name, col=p[0], row=p[1]) for p in traj[1:]]
+        return pred_points
 
 
-@g.my_app.callback("track")
-@sly.timeit
-@send_error_data
-def track(api: sly.Api, task_id, context, state, app_logger):
-    tracker = TrackerContainer(context, api, app_logger)
-    tracker.track()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+if sly.is_debug_with_sly_net():
+    model_dir = root / "reference_model"
+else:
+    model_dir = Path("/weights")  # path in Docker
 
+pips = PipsTracker(model_dir=str(model_dir), custom_inference_settings=str(settings))
 
-def main():
-    if torch.cuda.is_available():    
-        sly.logger.info("🟩 Model has been successfully deployed")
-
-        sly.logger.info("Script arguments", extra={
-            "context.teamId": g.team_id,
-            "context.workspaceId": g.workspace_id
-        })
-        g.my_app.run()
-    else:
-        sly.logger.info("🟥 GPU is not available, please run on agent with GPU and CUDA!")
-
-
-if __name__ == "__main__":
-    sly.main_wrapper("main", main)
-
-    # track({  # for debug
-    #     "teamId": 11,
-    #     "workspaceId": 32,
-    #     "videoId": 1114885,
-    #     "objectIds": [236670],
-    #     "figureIds": [54200821],
-    #     "frameIndex": 0,
-    #     "direction": 'forward',
-    #     'frames': 10,
-    #     'trackId': '5b82a928-0566-4d4d-a8e3-35f5abc736fe',
-    #     'figuresIds': [54200821]
-    # })
+if sly.is_production():
+    pips.serve()

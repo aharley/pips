@@ -12,7 +12,8 @@
   ],
   "description": "serve and use in videos annotator",
   "docker_image": "supervisely/pips:1.0.0",
-  "main_script": "supervisely/serve/src/main.py",
+  "entrypoint": "python -m uvicorn main:pips.app --app-dir ./supervisely/serve/src --host 0.0.0.0 --port 8000",
+  "port": 8000,
   "task_location": "application_sessions",
   "isolate": true,
   "headless": true,
@@ -24,8 +25,8 @@
   ],
   "community_agent": false,
   "allowed_shapes": [
-    "polygon",
     "point",
+    "polygon",
     "graph"
   ]
 }
