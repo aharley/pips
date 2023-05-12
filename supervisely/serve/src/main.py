@@ -36,6 +36,7 @@ class PipsTracker(PointTracking):
         if model_dir:
             _ = saverloader.load(str(model_dir), self.model, device=device)
         self.model.eval()
+        self.device = device
 
     def predict(
         self,
@@ -53,20 +54,14 @@ class PipsTracker(PointTracking):
         point = torch.tensor([[start_object.col, start_object.row]], dtype=float)
 
         with torch.no_grad():
-            try:
-                traj = sly_functions.run_model(
-                    self.model,
-                    rgbs,
-                    point,
-                    (h_resized, w_resized),
-                    frames_per_iter,
-                )
-            except RuntimeError as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                with open("/pips_logs.log", "w") as lf:
-                    lf.write(f"{exc_type}, {fname}, {exc_tb.tb_lineno}")
-                raise e
+            traj = sly_functions.run_model(
+                self.model,
+                rgbs,
+                point,
+                (h_resized, w_resized),
+                frames_per_iter,
+                device=self.device,
+            )
 
         pred_points = [PredictionPoint(class_name, col=p[0], row=p[1]) for p in traj[1:]]
         return pred_points
