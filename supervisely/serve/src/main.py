@@ -64,7 +64,8 @@ class PipsTracker(PointTracking):
             except RuntimeError as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)
+                with open("/pips_logs.log", "w") as lf:
+                    lf.write(f"{exc_type}, {fname}, {exc_tb.tb_lineno}")
                 raise e
 
         pred_points = [PredictionPoint(class_name, col=p[0], row=p[1]) for p in traj[1:]]
