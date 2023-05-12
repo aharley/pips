@@ -1,4 +1,4 @@
-supervisely==6.72.6
+git+https://github.com/supervisely/supervisely.git@tracking-inference-graph-support
 imageio==2.19.3
 opencv-python==4.6.0.66
 tensorboardX==2.2
