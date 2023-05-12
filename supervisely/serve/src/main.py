@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import saverloader
 import torch
@@ -52,13 +53,19 @@ class PipsTracker(PointTracking):
         point = torch.tensor([[start_object.col, start_object.row]], dtype=float)
 
         with torch.no_grad():
-            traj = sly_functions.run_model(
-                self.model,
-                rgbs,
-                point,
-                (h_resized, w_resized),
-                frames_per_iter,
-            )
+            try:
+                traj = sly_functions.run_model(
+                    self.model,
+                    rgbs,
+                    point,
+                    (h_resized, w_resized),
+                    frames_per_iter,
+                )
+            except RuntimeError as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                raise e
 
         pred_points = [PredictionPoint(class_name, col=p[0], row=p[1]) for p in traj[1:]]
         return pred_points
