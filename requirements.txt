@@ -1,7 +1,7 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
 torch==2.0.0+cu118
 torchvision==0.15.1+cu118
-supervisely==6.72.9
+supervisely==6.72.11
 imageio==2.19.3
 opencv-python==4.6.0.66
 tensorboardX==2.2
