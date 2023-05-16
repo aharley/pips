@@ -4,6 +4,7 @@ import saverloader
 import torch
 from dotenv import load_dotenv
 from pathlib import Path
+from PIL import Image
 from typing import Any, Dict, List, Literal
 from typing_extensions import Literal
 from nets.pips import Pips
@@ -66,7 +67,7 @@ class PipsTracker(PointTracking):
         return pred_points
 
 
-if sly.is_debug_with_sly_net():
+if sly.is_debug_with_sly_net() or not sly.is_production():
     model_dir = root / "reference_model"
 else:
     model_dir = Path("/weights")  # path in Docker
@@ -75,3 +76,23 @@ pips = PipsTracker(model_dir=str(model_dir), custom_inference_settings=str(setti
 
 if sly.is_production():
     pips.serve()
+else:
+    pth = Path("demo_images")
+    img_names = sorted(os.listdir(pth))
+    imgs = []
+
+    for name in img_names:
+        if "jpg" in name:
+            imgs.append(np.array(Image.open(pth / name)))
+
+    traj = pips.predict(
+        imgs,
+        pips.custom_inference_settings_dict,
+        PredictionPoint("", 448, 98),
+    )
+    pips.visualize(
+        traj,
+        imgs[1:],
+        vis_path="preds",
+        thickness=7,
+    )
