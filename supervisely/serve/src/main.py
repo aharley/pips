@@ -4,13 +4,13 @@ import saverloader
 import torch
 from dotenv import load_dotenv
 from pathlib import Path
-from PIL import Image
 from typing import Any, Dict, List, Literal
 from typing_extensions import Literal
 from nets.pips import Pips
 
 import sly_functions
 import supervisely as sly
+import supervisely.imaging.image as sly_image
 from supervisely.nn.inference import PointTracking
 from supervisely.nn.prediction_dto import PredictionPoint
 
@@ -83,7 +83,7 @@ else:
 
     for name in img_names:
         if "jpg" in name:
-            imgs.append(np.array(Image.open(pth / name)))
+            imgs.append(sly_image.read(str(pth / name)))
 
     traj = pips.predict(
         imgs,
