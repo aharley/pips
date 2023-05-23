@@ -16,4 +16,4 @@ secret_debug.env
 .venv
 
 .python-version
-
+settings.json
