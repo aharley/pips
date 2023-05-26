@@ -1,4 +1,4 @@
-frames_per_iter: 2
+frames_per_iter: 8
 stride: 3
 h_resized: 360
 w_resized: 640
