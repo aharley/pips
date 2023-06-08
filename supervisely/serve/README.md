@@ -66,7 +66,7 @@ https://user-images.githubusercontent.com/91027877/238154341-ed9acea5-2693-421d-
 # Acknowledgment
 
 This app is based on the great work `PIPs` 
-- [GitHub](https://github.com/aharley/pips) ![GitHub Org's stars](https://img.shields.io/github/stars/aharley/pips?style=social) 
+- [GitHub](https://github.com/aharley/pips) ![GitHub Org's stars](https://img.shields.io/github/stars/aharley/pips?style=social) Code in this repository is distributed under the MIT license.
 - [Website](https://particle-video-revisited.github.io/)
 - [Paper](https://arxiv.org/abs/2204.04153) 
 
