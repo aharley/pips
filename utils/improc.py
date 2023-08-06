@@ -735,7 +735,8 @@ class Summ_writer(object):
             traj = trajs[:,i] # S,2
             vis = visibles[:,i] # S
             valid = valids[:,i] # S
-            rgbs_color = self.draw_traj_on_images_py(rgbs_color, traj, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
+            if valid.sum()==S:
+                rgbs_color = self.draw_traj_on_images_py(rgbs_color, traj, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
             
         for i in range(N):
             if cmap=='onediff' and i==0:
@@ -747,7 +748,8 @@ class Summ_writer(object):
             traj = trajs[:,i] # S,2
             vis = visibles[:,i] # S
             valid = valids[:,i] # S
-            rgbs_color = self.draw_circ_on_images_py(rgbs_color, traj, vis, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
+            if valid.sum()==S:
+                rgbs_color = self.draw_circ_on_images_py(rgbs_color, traj, vis, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
 
         rgbs = []
         for rgb in rgbs_color:
