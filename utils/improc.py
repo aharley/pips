@@ -327,8 +327,10 @@ class ColorMap2d:
         output = np.zeros((X.shape[0], 3))
         for i in range(X.shape[0]):
             x, y = X[i, :]
-            xp = int(self._width * x)
-            yp = int(self._height * y)
+            xp = int((self._width-1) * x)
+            yp = int((self._height-1) * y)
+            xp = np.clip(xp, 0, self._width-1)
+            yp = np.clip(yp, 0, self._height-1)
             output[i, :] = self._img[yp, xp]
         return output
     
@@ -428,6 +430,45 @@ class Summ_writer(object):
             else:
                 return self.summ_gif(name, vis.unsqueeze(1), blacken_zeros)
 
+    def flow2color(self, flow, clip=50.0):
+        """
+        :param flow: Optical flow tensor.
+        :return: RGB image normalized between 0 and 1.
+        """
+
+        # flow is B x C x H x W
+
+        B, C, H, W = list(flow.size())
+
+        flow = flow.clone().detach()
+        
+        abs_image = torch.abs(flow)
+        flow_mean = abs_image.mean(dim=[1,2,3])
+        flow_std = abs_image.std(dim=[1,2,3])
+
+        if clip:
+            flow = torch.clamp(flow, -clip, clip)/clip
+        else:
+            # Apply some kind of normalization. Divide by the perceived maximum (mean + std*2)
+            flow_max = flow_mean + flow_std*2 + 1e-10
+            for b in range(B):
+                flow[b] = flow[b].clamp(-flow_max[b].item(), flow_max[b].item()) / flow_max[b].clamp(min=1)
+
+        radius = torch.sqrt(torch.sum(flow**2, dim=1, keepdim=True)) #B x 1 x H x W
+        radius_clipped = torch.clamp(radius, 0.0, 1.0)
+
+        angle = torch.atan2(flow[:, 1:], flow[:, 0:1]) / np.pi #B x 1 x H x W
+
+        hue = torch.clamp((angle + 1.0) / 2.0, 0.0, 1.0)
+        saturation = torch.ones_like(hue) * 0.75
+        value = radius_clipped
+        hsv = torch.cat([hue, saturation, value], dim=1) #B x 3 x H x W
+
+        #flow = tf.image.hsv_to_rgb(hsv)
+        flow = hsv_to_rgb(hsv)
+        flow = (flow*255.0).type(torch.ByteTensor)
+        return flow
+    
     def summ_flow(self, name, im, clip=0.0, only_return=False, frame_id=None):
         # flow is B x C x D x W
         if self.save_this:
