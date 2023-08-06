@@ -147,9 +147,6 @@ class PointOdysseyDataset(torch.utils.data.Dataset):
 
         # ensure that the point is visible at frame0
         vis0 = visibs[0] > 0
-        # inb0 = (trajs[0,:,0] >= 0) & (trajs[0,:,0] <= W-1) & (trajs[0,:,1] >= 0) & (trajs[0,:,1] <= H-1)
-        # inb_and_vis = inbound_ok & vis_ok
-        # inb_and_vis = inbound_ok & vis_ok
         trajs = trajs[:,vis0]
         visibs = visibs[:,vis0]
 
@@ -158,30 +155,10 @@ class PointOdysseyDataset(torch.utils.data.Dataset):
         trajs = trajs[:,vis_ok]
         visibs = visibs[:,vis_ok]
         
-        # # inbound0 = (trajs[0,:,0] >= 0) & (trajs[0,:,0] <= W-1) & (trajs[0,:,1] >= 0) & (trajs[0,:,1] <= H-1)
-        # # inbound_other = (trajs[1,:,0] >= 0) & (trajs[1,:,0] <= W-1) & (trajs[1,:,1] >= 0) & (trajs[1,:,1] <= H-1)
-        # # vis_other = visibs[1] > 0
-        # # inbs = np.zeros_like(visibs)
-        # for s in range(2,self.S):
-        #     inbound_i = (trajs[s,:,0] >= 0) & (trajs[s,:,0] <= W-1) & (trajs[s,:,1] >= 0) & (trajs[s,:,1] <= H-1)
-        #     inbound_other = inbound_other | inbound_i
-        #     vis_i = visibs[s] > 0
-        #     vis_other = vis_other | vis_i
-        # inbound_ok = inbound0 & inbound_other
-        # vis_ok = vis0 & vis_other
-        
-        # inb_and_vis = inbound_ok & vis_ok
-        # trajs = trajs[:,inb_and_vis]
-        # visibs = visibs[:,inb_and_vis]
-
         N = trajs.shape[1]
         
         # if N <= self.N:
         #     print('N=%d; ideally we want N=%d, but we will pad' % (N, self.N))
-        
-        # if N <= self.N:
-        #     print('returning after cropping, N=%d; need N=%d' % (N, self.N))
-        #     return None, False
 
         N_ = min(N, self.N)
 
@@ -379,16 +356,10 @@ class PointOdysseyDataset(torch.utils.data.Dataset):
         H, W = rgbs[0].shape[:2]
         assert(S==T)
 
-        ############ spatial transform ############
-
-        H_new = H
-        W_new = W
-
         # simple random crop
-        y0 = np.random.randint(0, H_new - self.crop_size[0])
-        x0 = np.random.randint(0, W_new - self.crop_size[1])
+        y0 = np.random.randint(0, H - self.crop_size[0])
+        x0 = np.random.randint(0, W - self.crop_size[1])
         rgbs = [rgb[y0:y0+self.crop_size[0], x0:x0+self.crop_size[1]] for rgb in rgbs]
-        # rgbs = rgbs[:,y0:y0+self.crop_size[0], x0:x0+self.crop_size[1]]
         trajs[:,:,0] -= x0
         trajs[:,:,1] -= y0
             
