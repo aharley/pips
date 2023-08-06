@@ -143,3 +143,58 @@ class SimplePool():
             # add to the back
             self.items.append(item)
         return self.items
+
+def farthest_point_sample(xyz, npoint, include_ends=False, deterministic=False):
+    """
+    Input:
+        xyz: pointcloud data, [B, N, C], where C is probably 3
+        npoint: number of samples
+    Return:
+        inds: sampled pointcloud index, [B, npoint]
+    """
+    device = xyz.device
+    B, N, C = xyz.shape
+    xyz = xyz.float()
+    inds = torch.zeros(B, npoint, dtype=torch.long).to(device)
+    distance = torch.ones(B, N).to(device) * 1e10
+    if deterministic:
+        farthest = torch.randint(0, 1, (B,), dtype=torch.long).to(device)
+    else:
+        farthest = torch.randint(0, N, (B,), dtype=torch.long).to(device)
+    batch_indices = torch.arange(B, dtype=torch.long).to(device)
+    for i in range(npoint):
+        if include_ends:
+            if i==0:
+                farthest = 0
+            elif i==1:
+                farthest = N-1
+        inds[:, i] = farthest
+        centroid = xyz[batch_indices, farthest, :].view(B, 1, C)
+        dist = torch.sum((xyz - centroid) ** 2, -1)
+        mask = dist < distance
+        distance[mask] = dist[mask]
+        farthest = torch.max(distance, -1)[1]
+
+        if npoint > N:
+            # if we need more samples, make them random
+            distance += torch.randn_like(distance)
+    return inds
+    
+
+def farthest_point_sample_py(xyz, npoint):
+    N,C = xyz.shape
+    inds = np.zeros(npoint, dtype=np.int32)
+    distance = np.ones(N) * 1e10
+    farthest = np.random.randint(0, N, dtype=np.int32)
+    for i in range(npoint):
+        inds[i] = farthest
+        centroid = xyz[farthest, :].reshape(1,C)
+        dist = np.sum((xyz - centroid) ** 2, -1)
+        mask = dist < distance
+        distance[mask] = dist[mask]
+        farthest = np.argmax(distance, -1)
+        if npoint > N:
+            # if we need more samples, make them random
+            distance += np.random.randn(*distance.shape)
+    return inds
+    
