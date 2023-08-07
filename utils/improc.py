@@ -739,17 +739,17 @@ class Summ_writer(object):
                 rgbs_color = self.draw_traj_on_images_py(rgbs_color, traj, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
             
         for i in range(N):
-            if cmap=='onediff' and i==0:
-                cmap_ = 'spring'
-            elif cmap=='onediff':
-                cmap_ = 'winter'
-            else:
-                cmap_ = cmap
+            # if cmap=='onediff' and i==0:
+            #     cmap_ = 'spring'
+            # elif cmap=='onediff':
+            #     cmap_ = 'winter'
+            # else:
+            #     cmap_ = cmap
             traj = trajs[:,i] # S,2
             vis = visibles[:,i] # S
             valid = valids[:,i] # S
             if valid.sum()==S:
-                rgbs_color = self.draw_circ_on_images_py(rgbs_color, traj, vis, S=S, show_dots=show_dots, cmap=cmap_, linewidth=linewidth)
+                rgbs_color = self.draw_circ_on_images_py(rgbs_color, traj, vis, S=S, show_dots=show_dots, cmap=None, linewidth=linewidth)
 
         rgbs = []
         for rgb in rgbs_color:
@@ -757,6 +757,57 @@ class Summ_writer(object):
             rgbs.append(preprocess_color(rgb))
 
         return self.summ_rgbs(name, rgbs, only_return=only_return, frame_ids=frame_ids)
+
+
+    def summ_pts_on_rgbs(self, name, trajs, rgbs, valids=None, frame_ids=None, only_return=False, show_dots=True, cmap='coolwarm', linewidth=1):
+        # trajs is B, S, N, 2
+        # rgbs is B, S, C, H, W
+        B, S, C, H, W = rgbs.shape
+        B, S2, N, D = trajs.shape
+        assert(S==S2)
+
+        rgbs = rgbs[0] # S, C, H, W
+        trajs = trajs[0] # S, N, 2
+        if valids is None:
+            valids = torch.ones_like(trajs[:,:,0]) # S, N
+        else:
+            valids = valids[0]
+        # print('trajs', trajs.shape)
+        # print('valids', valids.shape)
+        
+        rgbs_color = []
+        for rgb in rgbs:
+            rgb = back2color(rgb).detach().cpu().numpy() 
+            rgb = np.transpose(rgb, [1, 2, 0]) # put channels last
+            rgbs_color.append(rgb) # each element 3 x H x W
+
+        trajs = trajs.long().detach().cpu().numpy() # S, N, 2
+        valids = valids.long().detach().cpu().numpy() # S, N
+
+        rgbs_color = [rgb.astype(np.uint8).copy() for rgb in rgbs_color]
+        
+        for i in range(N):
+            if cmap=='onediff' and i==0:
+                cmap_ = 'spring'
+            elif cmap=='onediff':
+                cmap_ = 'winter'
+            else:
+                cmap_ = cmap
+            traj = trajs[:,i] # S,2
+            valid = valids[:,i] # S
+
+            color_map = cm.get_cmap(cmap)
+            color = np.array(color_map(i)[:3]) * 255 # rgb
+            for s in range(S):
+                if valid[s]:
+                    cv2.circle(rgbs_color[s], (traj[s,0], traj[s,1]), linewidth*2, color, -1)
+        rgbs = []
+        for rgb in rgbs_color:
+            rgb = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0)
+            rgbs.append(preprocess_color(rgb))
+
+        return self.summ_rgbs(name, rgbs, only_return=only_return, frame_ids=frame_ids)
+    
 
     def summ_traj2ds_on_rgb(self, name, trajs, rgb, valids=None, show_dots=True, frame_id=None, only_return=False, cmap='coolwarm', linewidth=1):
         # trajs is B, S, N, 2
@@ -871,7 +922,7 @@ class Summ_writer(object):
                           cv2.LINE_AA)
         return rgbs
     
-    def draw_circ_on_images_py(self, rgbs, traj, vis, S=50, linewidth=1, show_dots=False, cmap='coolwarm', maxdist=None):
+    def draw_circ_on_images_py(self, rgbs, traj, vis=None, S=50, linewidth=1, show_dots=False, cmap=None, maxdist=None):
         # all inputs are numpy tensors
         # rgbs is a list of 3,H,W
         # traj is S,2
@@ -883,28 +934,40 @@ class Summ_writer(object):
         S1, D = traj.shape
         assert(D==2)
 
-        bremm = ColorMap2d()
-        traj_ = traj[0:1].astype(np.float32)
-        traj_[:,0] /= float(W)
-        traj_[:,1] /= float(H)
-        color = bremm(traj_)
-        # print('color', color)
-        color = (color[0]*255).astype(np.uint8) 
-        # print('color', color)
-        color = (int(color[0]),int(color[1]),int(color[2]))
+        if cmap is None:
+            bremm = ColorMap2d()
+            traj_ = traj[0:1].astype(np.float32)
+            traj_[:,0] /= float(W)
+            traj_[:,1] /= float(H)
+            color = bremm(traj_)
+            # print('color', color)
+            color = (color[0]*255).astype(np.uint8) 
+            # print('color', color)
+            color = (int(color[0]),int(color[1]),int(color[2]))
+        else:
+            color_map = cm.get_cmap(cmap)
+            color = np.array(color_map(0)[:3]) * 255 # rgb
+            
 
-        x = int(np.clip(traj[0,0], 0, W-1))
-        y = int(np.clip(traj[0,1], 0, H-1))
-        color_ = rgbs[0][y,x]
-        color_ = (int(color_[0]),int(color_[1]),int(color_[2]))
-        color_ = (int(color_[0]),int(color_[1]),int(color_[2]))
+        # x = int(np.clip(traj[0,0], 0, W-1))
+        # y = int(np.clip(traj[0,1], 0, H-1))
+
+        # if cmap is None:
+        #     color_ = rgbs[0][y,x]
+        #     color_ = (int(color_[0]),int(color_[1]),int(color_[2]))
+        #     color_ = (int(color_[0]),int(color_[1]),int(color_[2]))
+        # else:
+        #     color_
+            
         # print('color_', color_)
         # print('vis[0]', vis[0])
         for s in range(S):
             cv2.circle(rgbs[s], (traj[s,0], traj[s,1]), linewidth*4, color, -1)
-            vis_color = int(np.squeeze(vis[s])*255)
-            vis_color = (vis_color,vis_color,vis_color)
-            cv2.circle(rgbs[s], (traj[s,0], traj[s,1]), linewidth*2, vis_color, -1)
+
+            if vis is not None:
+                vis_color = int(np.squeeze(vis[s])*255)
+                vis_color = (vis_color,vis_color,vis_color)
+                cv2.circle(rgbs[s], (traj[s,0], traj[s,1]), linewidth*2, vis_color, -1)
                 
         return rgbs
     
