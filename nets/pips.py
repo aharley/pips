@@ -426,7 +426,7 @@ class Pips(nn.Module):
         )
 
     def forward(self, xys, rgbs, device, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False, is_train=False):
-        total_loss = torch.tensor(0.0).to(dev)
+        total_loss = torch.tensor(0.0).to(device)
 
         B, N, D = xys.shape
         assert(D==2)

@@ -18,7 +18,7 @@ import torch.nn.functional as F
 random.seed(125)
 np.random.seed(125)
 
-def run_model(model, rgbs, N, sw, dev):
+def run_model(model, rgbs, N, sw, device):
     rgbs = rgbs.to(device).float() # B, S, C, H, W
 
     B, S, C, H, W = rgbs.shape
@@ -31,17 +31,17 @@ def run_model(model, rgbs, N, sw, dev):
     # try to pick a point on the dog, so we get an interesting trajectory
     # x = torch.randint(-10, 10, size=(1, N), device=torch.device('cuda')) + 468
     # y = torch.randint(-10, 10, size=(1, N), device=torch.device('cuda')) + 118
-    x = torch.ones((1, N), device=dev) * 450.0
-    y = torch.ones((1, N), device=dev) * 100.0
+    x = torch.ones((1, N), device=device) * 450.0
+    y = torch.ones((1, N), device=device) * 100.0
     xy0 = torch.stack([x, y], dim=-1) # B, N, 2
     _, S, C, H, W = rgbs.shape
 
-    trajs_e = torch.zeros((B, S, N, 2), dtype=torch.float32, device=dev)
+    trajs_e = torch.zeros((B, S, N, 2), dtype=torch.float32, device=device)
     for n in range(N):
         # print('working on keypoint %d/%d' % (n+1, N))
         cur_frame = 0
         done = False
-        traj_e = torch.zeros((B, S, 2), dtype=torch.float32, device=dev)
+        traj_e = torch.zeros((B, S, 2), dtype=torch.float32, device=device)
         traj_e[:,0] = xy0[:,n] # B, 1, 2  # set first position 
         feat_init = None
         while not done:
@@ -51,7 +51,7 @@ def run_model(model, rgbs, N, sw, dev):
             S_local = rgb_seq.shape[1]
             rgb_seq = torch.cat([rgb_seq, rgb_seq[:,-1].unsqueeze(1).repeat(1,8-S_local,1,1,1)], dim=1)
 
-            outs = model(traj_e[:,cur_frame].reshape(1, -1, 2), rgb_seq, device=dev, iters=6, feat_init=feat_init, return_feat=True)
+            outs = model(traj_e[:,cur_frame].reshape(1, -1, 2), rgb_seq, device, iters=6, feat_init=feat_init, return_feat=True)
             preds = outs[0]
             vis = outs[2] # B, S, 1
             feat_init = outs[3]
@@ -145,7 +145,7 @@ def main():
 
     if torch.cuda.is_available():
         device = torch.device('cuda')
-    else if torch.backends.mps.is_available():
+    elif torch.backends.mps.is_available():
         device = torch.device('mps')
     else:
         device = torch.device('cpu')

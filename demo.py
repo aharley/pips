@@ -37,7 +37,7 @@ def run_model(model, rgbs, N, sw, device):
     _, S, C, H, W = rgbs.shape
 
     print_stats('rgbs', rgbs)
-    preds, preds_anim, vis_e, stats = model(xy, rgbs, iters=6)
+    preds, preds_anim, vis_e, stats = model(xy, rgbs, device, iters=6, )
     trajs_e = preds[-1]
     print_stats('trajs_e', trajs_e)
     
@@ -114,7 +114,7 @@ def main():
     # Pick a device
     if torch.cuda.is_available():
         device = torch.device('cuda')
-    else if torch.backends.mps.is_available():
+    elif torch.backends.mps.is_available():
         device = torch.device('mps')
     else:
         device = torch.device('cpu')
@@ -156,7 +156,7 @@ def main():
             iter_start_time = time.time()
 
             with torch.no_grad():
-                trajs_e = run_model(model, rgbs, N, sw_t)
+                trajs_e = run_model(model, rgbs, N, sw_t, device)
 
             iter_time = time.time()-iter_start_time
             print('%s; step %06d/%d; rtime %.2f; itime %.2f' % (
