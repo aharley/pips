@@ -4,6 +4,22 @@ This is the official code release for our ECCV 2022 paper, "Particle Video Revis
 
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
+### Update 08/12/23:
+Added support for Apples silicon.
+Set up as below but instead of:
+
+`conda install pytorch=1.12.0 torchvision=0.13.0 cudatoolkit=11.3 -c pytorch`
+
+use 
+
+`conda install pytorch torchvision torchaudio -c pytorch`
+
+At the time of this fix, MPS does not support all operatord required for this code to run so you will also need :
+
+`export PYTORCH_ENABLE_MPS_FALLBACK=1`
+
+I also found I had to `conda install python=3.9` as the 3.11 I had didn't work.
+
 ### Update 07/27/23:
 
 Very soon, this repo will also host the PIPs++ model from our ICCV 2023 paper, "PointOdyssey: A Large-Scale Synthetic Dataset for Long-Term Point Tracking". **[[Paper](https://arxiv.org/abs/2307.15055)] [[Project Page](https://pointodyssey.com/)]**
