@@ -55,9 +55,8 @@ pip install -r requirements.txt
 If you want to run this code on Apple's silicon, use the following:
 
 ```
-conda create --name pips
+conda create --name pips python=3.9
 source activate pips
-conda install python=3.9
 conda install pytorch torchvision torchaudio -c pytorch
 conda install pip
 pip install -r requirements.txt
