@@ -22,7 +22,7 @@ def save(ckpt_dir, optimizer, model, global_step, scheduler=None, model_ema=None
     torch.save(ckpt, model_path)
     print("saved a checkpoint: %s" % (model_path))
 
-def load(ckpt_dir, model, optimizer=None, scheduler=None, model_ema=None, step=0, model_name='model', ignore_load=None):
+def load(ckpt_dir, model, device, optimizer=None, scheduler=None, model_ema=None, step=0, model_name='model', ignore_load=None):
     print('reading ckpt from %s' % ckpt_dir)
     if not os.path.exists(ckpt_dir):
         print('...there is no full checkpoint here!')
@@ -55,7 +55,7 @@ def load(ckpt_dir, model, optimizer=None, scheduler=None, model_ema=None, step=0
                 # 3. load the new state dict
                 model.load_state_dict(model_dict, strict=False)
             else:
-                checkpoint = torch.load(path)
+                checkpoint = torch.load(path, map_location=device)
                 model.load_state_dict(checkpoint['model_state_dict'], strict=False)
                 
             if optimizer is not None:

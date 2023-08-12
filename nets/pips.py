@@ -425,8 +425,8 @@ class Pips(nn.Module):
             nn.Linear(self.latent_dim, 1),
         )
 
-    def forward(self, xys, rgbs, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False, is_train=False):
-        total_loss = torch.tensor(0.0).cuda()
+    def forward(self, xys, rgbs, device, coords_init=None, feat_init=None, iters=3, trajs_g=None, vis_g=None, valids=None, sw=None, return_feat=False, is_train=False):
+        total_loss = torch.tensor(0.0).to(dev)
 
         B, N, D = xys.shape
         assert(D==2)

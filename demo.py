@@ -18,8 +18,8 @@ import torch.nn.functional as F
 random.seed(125)
 np.random.seed(125)
 
-def run_model(model, rgbs, N, sw):
-    rgbs = rgbs.cuda().float() # B, S, C, H, W
+def run_model(model, rgbs, N, sw, device):
+    rgbs = rgbs.to(device).float() # B, S, C, H, W
 
     B, S, C, H, W = rgbs.shape
     rgbs_ = rgbs.reshape(B*S, C, H, W)
@@ -30,7 +30,7 @@ def run_model(model, rgbs, N, sw):
 
     # pick N points to track; we'll use a uniform grid
     N_ = np.sqrt(N).round().astype(np.int32)
-    grid_y, grid_x = utils.basic.meshgrid2d(B, N_, N_, stack=False, norm=False, device='cuda')
+    grid_y, grid_x = utils.basic.meshgrid2d(B, N_, N_, stack=False, norm=False, device=device)
     grid_y = 8 + grid_y.reshape(B, -1)/float(N_-1) * (H-16)
     grid_x = 8 + grid_x.reshape(B, -1)/float(N_-1) * (W-16)
     xy = torch.stack([grid_x, grid_y], dim=-1) # B, N_*N_, 2
@@ -111,10 +111,19 @@ def main():
 
     global_step = 0
 
-    model = Pips(stride=4).cuda()
+    # Pick a device
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else if torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+
+
+    model = Pips(stride=4).to(device)
     parameters = list(model.parameters())
     if init_dir:
-        _ = saverloader.load(init_dir, model)
+        _ = saverloader.load(init_dir, model, device=device)
     global_step = 0
     model.eval()
     
