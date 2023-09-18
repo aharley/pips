@@ -4,9 +4,7 @@ This is the official code release for our ECCV 2022 paper, "Particle Video Revis
 
 <img src='https://particle-video-revisited.github.io/images/fig1.jpg'>
 
-### Update 07/27/23:
-
-Very soon, this repo will also host the PIPs++ model from our ICCV 2023 paper, "PointOdyssey: A Large-Scale Synthetic Dataset for Long-Term Point Tracking". **[[Paper](https://arxiv.org/abs/2307.15055)] [[Project Page](https://pointodyssey.com/)]**
+Update 09/18/23: [PIPs++](https://github.com/aharley/pips2) is now available. This is the upgrade of PIPs presented in our ICCV 2023 paper, "PointOdyssey: A Large-Scale Synthetic Dataset for Long-Term Point Tracking". **[[Paper](https://arxiv.org/abs/2307.15055)] [[Project Page](https://pointodyssey.com/)]**
 
 
 ### Update 12/15/22:
