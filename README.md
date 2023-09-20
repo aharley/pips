@@ -51,6 +51,23 @@ conda install pip
 pip install -r requirements.txt
 ```
 
+## Running on Apple Silicon
+If you want to run this code on Apple's silicon, use the following:
+
+```
+conda create --name pips python=3.9
+source activate pips
+conda install pytorch torchvision torchaudio -c pytorch
+conda install pip
+pip install -r requirements.txt
+```
+
+At the time of this fix, MPS does not support all operators required for this code to run so you will also need:
+
+`export PYTORCH_ENABLE_MPS_FALLBACK=1`
+
+
+
 ## Demo
 
 To download our reference model, download the weights from [Hugging Face. ![](https://img.shields.io/badge/🤗%20Hugging%20Face-Model-blue)](https://huggingface.co/aharley/pips)
